@@ -11,3 +11,4 @@ cache
 artifacts
 typechain
 coverage
+.vscode/settings.json
