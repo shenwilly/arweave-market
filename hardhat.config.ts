@@ -41,10 +41,10 @@ const config: HardhatUserConfig = {
     hardhat: {
       initialBaseFeePerGas: 0, // workaround from https://github.com/sc-forks/solidity-coverage/issues/652#issuecomment-896330136 . Remove when that issue is closed.
       allowUnlimitedContractSize: true,
-      // forking: {
-      //   url: NETWORK_FORK_URL,
-      //   blockNumber: 12984971,
-      // },
+      forking: {
+        url: NETWORK_FORK_URL,
+        blockNumber: 12984971,
+      },
       // hardfork: "berlin"
     },
     mainnet: {
@@ -70,6 +70,9 @@ const config: HardhatUserConfig = {
   typechain: {
     outDir: "typechain",
     target: "ethers-v5",
+  },
+  mocha: {
+    timeout: 0,
   },
 };
 
