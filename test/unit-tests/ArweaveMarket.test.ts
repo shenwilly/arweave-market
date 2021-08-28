@@ -398,7 +398,7 @@ describe("ArweaveMarket", function () {
         "ArweaveMarket::cancelRequest:Sender is not requester"
       );
     });
-    it("should cancel request", async () => {
+    it("should cancel request (token payment)", async () => {
       const balanceBefore = await usdc.balanceOf(requesterAddress);
 
       await expect(arweaveMarket.connect(requester).cancelRequest(requestId))
@@ -407,6 +407,32 @@ describe("ArweaveMarket", function () {
 
       const balanceAfter = await usdc.balanceOf(requesterAddress);
       expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
+
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.be.eq(RequestPeriod.Finished);
+    });
+    it("should cancel request (ETH payment)", async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+      const amount = parseEther("1");
+
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, DUMMY_ETH_ADDRESS, 0, {
+          value: amount,
+        });
+
+      const balanceBefore = await ethers.provider.getBalance(requesterAddress);
+
+      const tx = await arweaveMarket
+        .connect(requester)
+        .cancelRequest(requestId);
+      expect(tx).to.emit(arweaveMarket, "RequestCancelled").withArgs(requestId);
+
+      const receipt = await tx.wait();
+      const txFee = receipt.gasUsed.mul(receipt.effectiveGasPrice);
+
+      const balanceAfter = await ethers.provider.getBalance(requesterAddress);
+      expect(balanceAfter.sub(balanceBefore).add(txFee)).to.be.eq(amount);
 
       const request = await arweaveMarket.requests(requestId);
       expect(request[9]).to.be.eq(RequestPeriod.Finished);
