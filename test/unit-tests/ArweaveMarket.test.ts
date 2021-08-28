@@ -4,7 +4,12 @@ import { ArweaveMarket, ArweaveMarket__factory } from "../../typechain";
 
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
-import { USDC_ADDRESS, USDC_DECIMALS } from "../../constants";
+import {
+  DUMMY_ETH_ADDRESS,
+  ERC20_DECIMALS,
+  USDC_ADDRESS,
+  USDC_DECIMALS,
+} from "../../constants";
 import {
   fastForwardTo,
   getCurrentTimestamp,
@@ -12,7 +17,7 @@ import {
   mintUsdc,
 } from "../helpers/utils";
 import { Contract } from "@ethersproject/contracts";
-import { parseUnits } from "@ethersproject/units";
+import { parseEther, parseUnits } from "@ethersproject/units";
 import { BigNumber } from "ethers";
 import { RequestPeriod } from "../helpers/types";
 
@@ -70,8 +75,10 @@ describe("ArweaveMarket", function () {
       await expect(
         arweaveMarket
           .connect(requester)
-          .createRequest(defaultFileHash, AddressZero, 0)
-      ).to.be.revertedWith("Address: call to non-contract");
+          .createRequest(defaultFileHash, AddressZero, 1)
+      ).to.be.revertedWith(
+        "Transaction reverted: function call to a non-contract account"
+      );
     });
     it("should revert if payment token is not approved", async () => {
       await expect(
@@ -88,7 +95,7 @@ describe("ArweaveMarket", function () {
           .createRequest(defaultFileHash, USDC_ADDRESS, 1)
       ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
     });
-    it("should create a request", async () => {
+    it("should create a request (token payment)", async () => {
       const requestId = await getNextRequestId(arweaveMarket);
 
       const amount = parseUnits("100", USDC_DECIMALS);
@@ -115,6 +122,41 @@ describe("ArweaveMarket", function () {
       expect(request[3]).to.be.eq(requesterAddress);
       expect(request[4]).to.be.eq(AddressZero);
       expect(request[5]).to.be.eq(usdc.address);
+      expect(request[6]).to.be.eq(amount);
+      expect(request[7]).to.be.eq(0);
+      expect(request[8]).to.be.eq(0);
+      expect(request[9]).to.be.eq(RequestPeriod.Waiting);
+    });
+    it("should create a request (ETH payment)", async () => {
+      const requestId = await getNextRequestId(arweaveMarket);
+
+      const amount = parseEther("0.15");
+      const balanceBefore = await ethers.provider.getBalance(
+        arweaveMarket.address
+      );
+
+      await expect(
+        arweaveMarket
+          .connect(requester)
+          .createRequest(defaultFileHash, DUMMY_ETH_ADDRESS, 0, {
+            value: amount,
+          })
+      )
+        .to.emit(arweaveMarket, "RequestCreated")
+        .withArgs(requestId, requesterAddress, defaultFileHash);
+
+      const balanceAfter = await ethers.provider.getBalance(
+        arweaveMarket.address
+      );
+      expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
+
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[0]).to.be.eq(requestId);
+      expect(request[1]).to.be.eq(defaultFileHash);
+      expect(request[2]).to.be.eq("");
+      expect(request[3]).to.be.eq(requesterAddress);
+      expect(request[4]).to.be.eq(AddressZero);
+      expect(request[5]).to.be.eq(DUMMY_ETH_ADDRESS);
       expect(request[6]).to.be.eq(amount);
       expect(request[7]).to.be.eq(0);
       expect(request[8]).to.be.eq(0);
