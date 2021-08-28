@@ -40,15 +40,10 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         if (_paymentToken == ETH_TOKEN) {
             paymentAmount = msg.value;
         } else {
-            uint256 preBalance = IERC20(_paymentToken).balanceOf(address(this));
-            IERC20(_paymentToken).safeTransferFrom(
-                msg.sender,
-                address(this),
-                _paymentAmount
-            );
-            uint256 postBalance = IERC20(_paymentToken).balanceOf(
-                address(this)
-            );
+            IERC20 token = IERC20(_paymentToken);
+            uint256 preBalance = token.balanceOf(address(this));
+            token.safeTransferFrom(msg.sender, address(this), _paymentAmount);
+            uint256 postBalance = token.balanceOf(address(this));
             paymentAmount = postBalance - preBalance;
         }
 
