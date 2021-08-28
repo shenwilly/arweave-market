@@ -15,9 +15,10 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     uint256 public fulfillWindow;
     /// @notice duration before payment can be taken by uploader
     uint256 public validationWindow;
-    
+
     address public mediator;
-    address constant public ETH_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public constant ETH_TOKEN =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     modifier onlyPeriod(uint256 _requestId, RequestPeriod _period) {
         require(
@@ -27,7 +28,11 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         _;
     }
 
-    constructor(address _mediator, uint256 _fulfillWindow, uint256 _validationWindow) {
+    constructor(
+        address _mediator,
+        uint256 _fulfillWindow,
+        uint256 _validationWindow
+    ) {
         mediator = _mediator;
         fulfillWindow = _fulfillWindow;
         validationWindow = _validationWindow;
@@ -95,8 +100,8 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         onlyPeriod(_requestId, RequestPeriod.Validating)
     {
         require(
-            requests[_requestId].validationDeadline < block.timestamp,
-            "ArweaveMarket::finishRequest:Deadline has not been reached"
+            block.timestamp > requests[_requestId].validationDeadline,
+            "ArweaveMarket::finishRequest:Validation deadline has not been reached"
         );
 
         _finishRequest(_requestId);
@@ -124,7 +129,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         );
         require(
             requests[_requestId].fulfillDeadline < block.timestamp,
-            "ArweaveMarket::cancelRequestTimeout:Deadline has not been reached"
+            "ArweaveMarket::cancelRequestTimeout:Fulfill deadline has not been reached"
         );
 
         _cancelRequest(_requestId);
@@ -134,17 +139,11 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         ArweaveRequest storage request = requests[_requestId];
         request.period = RequestPeriod.Finished;
 
-        if (request.paymentToken == ETH_TOKEN) {
-            (bool success, ) = request.taker.call{value: request.paymentAmount}(
-                ""
-            );
-            require(success, "_transfer: ETH transfer failed");
-        } else {
-            IERC20(request.paymentToken).safeTransfer(
-                request.taker,
-                request.paymentAmount
-            );
-        }
+        _transfer(
+            payable(request.taker),
+            request.paymentToken,
+            request.paymentAmount
+        );
 
         emit RequestFinished(_requestId);
     }
@@ -153,19 +152,27 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         ArweaveRequest storage request = requests[_requestId];
         request.period = RequestPeriod.Finished;
 
-        if (request.paymentToken == ETH_TOKEN) {
-            (bool success, ) = request.requester.call{
-                value: request.paymentAmount
-            }("");
-            require(success, "_transfer: ETH transfer failed");
-        } else {
-            IERC20(request.paymentToken).safeTransfer(
-                request.requester,
-                request.paymentAmount
-            );
-        }
+        _transfer(
+            payable(request.requester),
+            request.paymentToken,
+            request.paymentAmount
+        );
 
         emit RequestCancelled(_requestId);
+    }
+
+    function _transfer(
+        address payable _to,
+        address _token,
+        uint256 _amount
+    ) private {
+        if (_token == ETH_TOKEN) {
+            (bool success, ) = _to.call{value: _amount}("");
+            require(success, "ArweaveMarket::_transfer: ETH transfer failed");
+        } else {
+            IERC20(_token).safeTransfer(_to, _amount);
+        }
+    }
 
     function setMediator(address _mediator) public onlyOwner {
         mediator = _mediator;
