@@ -288,10 +288,56 @@ describe("ArweaveMarket", function () {
   });
 
   describe("cancelRequest()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
-    // it("should create a request", async () => {
-    // });
+    let requestId: BigNumber;
+    const amount = parseUnits("100", USDC_DECIMALS);
+
+    beforeEach(async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+
+      await usdc.connect(requester).approve(arweaveMarket.address, amount);
+      await mintUsdc(amount, requesterAddress);
+
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, amount);
+    });
+
+    it("should revert if request doesn't exist", async () => {
+      const requestsLength = await arweaveMarket.getRequestsLength();
+      await expect(
+        arweaveMarket.connect(requester).cancelRequest(requestsLength.add(1))
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
+      );
+    });
+    it("should revert if request is not in waiting period", async () => {
+      await arweaveMarket.connect(taker).takeRequest(requestId);
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.not.be.eq(RequestPeriod.Waiting);
+      await expect(
+        arweaveMarket.connect(requester).cancelRequest(requestId)
+      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
+    });
+    it("should revert if sender is not requester", async () => {
+      await expect(
+        arweaveMarket.connect(taker).cancelRequest(requestId)
+      ).to.be.revertedWith(
+        "ArweaveMarket::cancelRequest:Sender is not requester"
+      );
+    });
+    it("should cancel request", async () => {
+      const balanceBefore = await usdc.balanceOf(requesterAddress);
+
+      await expect(arweaveMarket.connect(requester).cancelRequest(requestId))
+        .to.emit(arweaveMarket, "RequestCancelled")
+        .withArgs(requestId);
+
+      const balanceAfter = await usdc.balanceOf(requesterAddress);
+      expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
+
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.be.eq(RequestPeriod.Finished);
+    });
   });
 
   describe("_finishRequest()", async () => {
