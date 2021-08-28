@@ -115,32 +115,38 @@ describe("ArweaveMarket", function () {
   });
 
   describe("takeRequest()", async () => {
-    it("should revert if request doesn't exist", async () => {
-      const requestsLength = await arweaveMarket.getRequestsLength();
-      await expect(
-        arweaveMarket.connect(taker).takeRequest(requestsLength.add(1))
-      ).to.be.revertedWith(
-        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
-      );
-    });
-    it("should revert if request is not in waiting period", async () => {
-      const requestId = await getNextRequestId(arweaveMarket);
-      await arweaveMarket
-        .connect(requester)
-        .createRequest(defaultFileHash, USDC_ADDRESS, 0);
-      await arweaveMarket.connect(taker).takeRequest(requestId);
-      await expect(
-        arweaveMarket.connect(taker).takeRequest(requestId)
-      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
-    });
-    it("should take request", async () => {
-      const requestId = await getNextRequestId(arweaveMarket);
-      const amount = 0;
+    let requestId: BigNumber;
+    const amount = 0
+
+    beforeEach(async () => {
+      requestId = await getNextRequestId(arweaveMarket);
       await arweaveMarket
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, amount);
+    });
 
-      await expect(arweaveMarket.connect(taker).takeRequest(requestId))
+    it("should revert if request doesn't exist", async () => {
+      const requestsLength = await arweaveMarket.getRequestsLength();
+      await expect(
+        arweaveMarket
+          .connect(taker)
+          .takeRequest(requestsLength.add(1))
+      ).to.be.revertedWith("reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)");
+    });
+    it("should revert if request is not in waiting period", async () => {
+      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await expect(
+        arweaveMarket
+          .connect(taker)
+          .takeRequest(requestId)
+      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
+    });
+    it("should take request", async () => {
+      await expect(
+        arweaveMarket
+          .connect(taker)
+          .takeRequest(requestId)
+      )
         .to.emit(arweaveMarket, "RequestTaken")
         .withArgs(requestId, takerAddress);
 
