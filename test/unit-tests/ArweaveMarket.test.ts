@@ -364,8 +364,8 @@ describe("ArweaveMarket", function () {
       const balanceAfterTaker = await ethers.provider.getBalance(takerAddress);
       expect(balanceAfterTaker.sub(balanceBeforeTaker)).to.be.eq(amount);
 
-      const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.be.eq(RequestPeriod.Finished);
+      const requestPost = await arweaveMarket.requests(requestId);
+      expect(requestPost[9]).to.be.eq(RequestPeriod.Finished);
     });
   });
 
@@ -518,7 +518,7 @@ describe("ArweaveMarket", function () {
         "ArweaveMarket::cancelRequestTimeout:Deadline has not been reached"
       );
     });
-    it("should cancel request", async () => {
+    it("should cancel request (token payment)", async () => {
       await fastForwardTo(fulfillDeadlineTimestamp);
       const balanceBefore = await usdc.balanceOf(requesterAddress);
 
@@ -533,6 +533,52 @@ describe("ArweaveMarket", function () {
 
       const request = await arweaveMarket.requests(requestId);
       expect(request[9]).to.be.eq(RequestPeriod.Finished);
+    });
+    it("should cancel request (ETH payment)", async () => {
+      const requestId = await getNextRequestId(arweaveMarket);
+      const amount = parseEther("1");
+
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, DUMMY_ETH_ADDRESS, 0, {
+          value: amount,
+        });
+      await arweaveMarket.connect(taker).takeRequest(requestId);
+
+      const requestPre = await arweaveMarket.requests(requestId);
+      const fulfillDeadline: BigNumber = requestPre[7];
+      const fulfillDeadlineTimestamp = fulfillDeadline.toNumber();
+
+      await fastForwardTo(fulfillDeadlineTimestamp);
+      const balanceBeforeContract = await ethers.provider.getBalance(
+        arweaveMarket.address
+      );
+      const balanceBeforeRequester = await ethers.provider.getBalance(
+        requesterAddress
+      );
+
+      const tx = await arweaveMarket
+        .connect(requester)
+        .cancelRequestTimeout(requestId);
+      expect(tx).to.emit(arweaveMarket, "RequestCancelled").withArgs(requestId);
+
+      const receipt = await tx.wait();
+      const txFee = await getTxFee(receipt);
+
+      const balanceAfterContract = await ethers.provider.getBalance(
+        arweaveMarket.address
+      );
+      expect(balanceBeforeContract.sub(balanceAfterContract)).to.be.eq(amount);
+
+      const balanceAfterRequester = await ethers.provider.getBalance(
+        requesterAddress
+      );
+      expect(
+        balanceAfterRequester.sub(balanceBeforeRequester).add(txFee)
+      ).to.be.eq(amount);
+
+      const requestPost = await arweaveMarket.requests(requestId);
+      expect(requestPost[9]).to.be.eq(RequestPeriod.Finished);
     });
   });
 
