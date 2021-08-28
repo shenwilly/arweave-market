@@ -63,4 +63,67 @@ describe("ArweaveMarket", function () {
         .withArgs(requestId, requesterAddress, hash);
     });
   });
+
+  describe("takeRequest()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+    // it("should create a request", async () => {
+    // });
+  });
+
+  describe("fulfillRequest()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+    // it("should create a request", async () => {
+    // });
+  });
+
+  describe("finishRequest()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+    // it("should create a request", async () => {
+    // });
+  });
+
+  describe("cancelRequest()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+    // it("should create a request", async () => {
+    // });
+  });
+
+  describe("_finishRequest()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+    // it("should create a request", async () => {
+    // });
+  });
+
+  describe("_cancelRequest()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+    // it("should create a request", async () => {
+    // });
+  });
+
+  describe("setFulfillWindow()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+    // it("should create a request", async () => {
+    // });
+  });
+
+  describe("setValidationWindow()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+    // it("should create a request", async () => {
+    // });
+  });
+
+  describe("getRequestsLength()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+    // it("should create a request", async () => {
+    // });
+  });
 });
