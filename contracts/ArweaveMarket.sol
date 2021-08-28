@@ -16,6 +16,8 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     /// @notice duration before payment can be taken by uploader
     uint256 public validationWindow;
 
+    address constant ETH_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     modifier onlyPeriod(uint256 _requestId, RequestPeriod _period) {
         require(
             requests[_requestId].period == _period,
@@ -33,19 +35,29 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         string calldata _dataHash,
         address _paymentToken,
         uint256 _paymentAmount
-    ) external {
-        IERC20(_paymentToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _paymentAmount
-        );
+    ) external payable {
+        uint256 paymentAmount;
+        if (_paymentToken == ETH_TOKEN) {
+            paymentAmount = msg.value;
+        } else {
+            uint256 preBalance = IERC20(_paymentToken).balanceOf(address(this));
+            IERC20(_paymentToken).safeTransferFrom(
+                msg.sender,
+                address(this),
+                _paymentAmount
+            );
+            uint256 postBalance = IERC20(_paymentToken).balanceOf(
+                address(this)
+            );
+            paymentAmount = postBalance - preBalance;
+        }
 
         ArweaveRequest memory request;
         request.id = requests.length;
         request.requester = msg.sender;
         request.dataHash = _dataHash;
         request.paymentToken = _paymentToken;
-        request.paymentAmount = _paymentAmount;
+        request.paymentAmount = paymentAmount;
 
         requests.push(request);
 
@@ -124,10 +136,18 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     function _finishRequest(uint256 _requestId) private {
         ArweaveRequest storage request = requests[_requestId];
         request.period = RequestPeriod.Finished;
-        IERC20(request.paymentToken).safeTransfer(
-            request.taker,
-            request.paymentAmount
-        );
+
+        if (request.paymentToken == ETH_TOKEN) {
+            (bool success, ) = request.taker.call{value: request.paymentAmount}(
+                ""
+            );
+            require(success, "_transfer: ETH transfer failed");
+        } else {
+            IERC20(request.paymentToken).safeTransfer(
+                request.taker,
+                request.paymentAmount
+            );
+        }
 
         emit RequestFinished(_requestId);
     }
