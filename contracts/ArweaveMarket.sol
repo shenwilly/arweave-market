@@ -28,6 +28,14 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         _;
     }
 
+    modifier onlyMediator() {
+        require(
+            msg.sender == mediator,
+            "ArweaveMarket: Sender is not mediator"
+        );
+        _;
+    }
+
     constructor(
         address _mediator,
         uint256 _fulfillWindow,
@@ -93,6 +101,42 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         request.validationDeadline = block.timestamp + validationWindow;
 
         emit RequestFulfilled(_requestId, _arweaveTxId);
+    }
+
+    function disputeRequest(uint256 _requestId)
+        external
+        onlyPeriod(_requestId, RequestPeriod.Validating)
+    {
+        ArweaveRequest storage request = requests[_requestId];
+        require(
+            request.requester == msg.sender,
+            "ArweaveMarket::disputeRequest:Sender is not requester"
+        );
+        require(
+            block.timestamp < request.validationDeadline,
+            "ArweaveMarket::disputeRequest:Validation deadline has been reached"
+        );
+        request.period = RequestPeriod.Disputed;
+
+        _notifyMediator(_requestId);
+
+        emit RequestDisputed(_requestId);
+    }
+
+    function resolveDispute(uint256 _requestId, DisputeWinner _winner)
+        external
+        override
+        onlyMediator
+        onlyPeriod(_requestId, RequestPeriod.Disputed)
+    {
+        if (_winner == DisputeWinner.None) {
+            _cancelRequest(_requestId);
+        } else if (_winner == DisputeWinner.Requester) {
+            _cancelRequest(_requestId);
+            _reimburse(_requestId);
+        } else if (_winner == DisputeWinner.Taker) {
+            _finishRequest(_requestId);
+        }
     }
 
     function finishRequest(uint256 _requestId)
@@ -172,6 +216,14 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         } else {
             IERC20(_token).safeTransfer(_to, _amount);
         }
+    }
+
+    function _notifyMediator(uint256 _requestId) private {
+        // TODO: notify mediator of new dispute
+    }
+
+    function _reimburse(uint256 _requestId) private {
+        // TODO: punish taker and reimburse requester
     }
 
     function setMediator(address _mediator) public onlyOwner {

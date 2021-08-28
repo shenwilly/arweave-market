@@ -10,6 +10,12 @@ interface IArweaveMarket {
         Finished
     }
 
+    enum DisputeWinner {
+        None,
+        Requester,
+        Taker
+    }
+
     struct ArweaveRequest {
         uint256 id;
         string dataHash;
@@ -33,4 +39,6 @@ interface IArweaveMarket {
     event RequestFulfilled(uint256 indexed id, string _arweaveTx);
     event RequestDisputed(uint256 indexed id);
     event RequestFinished(uint256 indexed id);
+
+    function resolveDispute(uint256 _requestId, DisputeWinner _winner) external;
 }
