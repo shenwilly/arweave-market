@@ -457,9 +457,24 @@ describe("ArweaveMarket", function () {
   });
 
   describe("getRequestsLength()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
-    // it("should create a request", async () => {
-    // });
+    it("should return length of requests", async () => {
+      const currentLength = await arweaveMarket.getRequestsLength();
+      expect(currentLength).to.be.eq(0);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, 0);
+      expect(await arweaveMarket.getRequestsLength()).to.be.eq(
+        currentLength.add(1)
+      );
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, 0);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, 0);
+      expect(await arweaveMarket.getRequestsLength()).to.be.eq(
+        currentLength.add(3)
+      );
+    });
   });
 });
