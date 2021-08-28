@@ -25,3 +25,8 @@ export const getCurrentTimestamp = async () => {
   const block = await ethers.provider.getBlock("latest");
   return BigNumber.from(block.timestamp);
 };
+
+export const fastForwardTo = async (expiryTimestamp: number) => {
+  await ethers.provider.send("evm_setNextBlockTimestamp", [expiryTimestamp]);
+  await ethers.provider.send("evm_mine", []);
+};
