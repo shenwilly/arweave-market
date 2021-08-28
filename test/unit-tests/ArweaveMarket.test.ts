@@ -30,7 +30,8 @@ describe("ArweaveMarket", function () {
 
   let snapshotId: string; // EVM snapshot before each test
 
-  const defaultFileHash = ethers.utils.formatBytes32String("test");
+  const defaultFileHash = "sample-file-hash";
+  const defaultArweaveTxId = "lOBCN7P_-hfZAXPNP92LLyek_h71I1KxrT2akqT-zfU";
   const AddressZero = ethers.constants.AddressZero;
 
   before("setup contracts", async () => {
@@ -103,7 +104,7 @@ describe("ArweaveMarket", function () {
       const request = await arweaveMarket.requests(requestId);
       expect(request[0]).to.be.eq(requestId);
       expect(request[1]).to.be.eq(defaultFileHash);
-      expect(request[2]).to.be.eq("0x");
+      expect(request[2]).to.be.eq("");
       expect(request[3]).to.be.eq(requesterAddress);
       expect(request[4]).to.be.eq(AddressZero);
       expect(request[5]).to.be.eq(usdc.address);
