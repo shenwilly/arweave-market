@@ -15,8 +15,9 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     uint256 public fulfillWindow;
     /// @notice duration before payment can be taken by uploader
     uint256 public validationWindow;
-
-    address constant ETH_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    
+    address public mediator;
+    address constant public ETH_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     modifier onlyPeriod(uint256 _requestId, RequestPeriod _period) {
         require(
@@ -26,7 +27,8 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         _;
     }
 
-    constructor(uint256 _fulfillWindow, uint256 _validationWindow) {
+    constructor(address _mediator, uint256 _fulfillWindow, uint256 _validationWindow) {
+        mediator = _mediator;
         fulfillWindow = _fulfillWindow;
         validationWindow = _validationWindow;
     }
@@ -164,6 +166,9 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         }
 
         emit RequestCancelled(_requestId);
+
+    function setMediator(address _mediator) public onlyOwner {
+        mediator = _mediator;
     }
 
     function setFulfillWindow(uint256 _fulfillWindow) public onlyOwner {
