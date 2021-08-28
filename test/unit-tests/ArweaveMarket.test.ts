@@ -4,8 +4,12 @@ import { ArweaveMarket, ArweaveMarket__factory } from "../../typechain";
 
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
-import { USDC_ADDRESS } from "../../constants";
-import { getNextRequestId } from "../helpers/utils";
+import { USDC_ADDRESS, USDC_DECIMALS } from "../../constants";
+import { getNextRequestId, mintUsdc } from "../helpers/utils";
+import { Contract } from "@ethersproject/contracts";
+import { parseUnits } from "@ethersproject/units";
+import { BigNumber } from "ethers";
+import { RequestPeriod } from "../helpers/types";
 
 const { expect } = chai;
 chai.use(solidity);
@@ -18,9 +22,16 @@ describe("ArweaveMarket", function () {
   let requesterAddress: string;
   let takerAddress: string;
 
+  let usdc: Contract;
+
   let arweaveMarket: ArweaveMarket;
+  let fulfillWindow: BigNumber;
+  let validationWindow: BigNumber;
 
   let snapshotId: string; // EVM snapshot before each test
+
+  const defaultFileHash = ethers.utils.formatBytes32String("test");
+  const AddressZero = ethers.constants.AddressZero;
 
   before("setup contracts", async () => {
     [owner, requester, taker] = await ethers.getSigners();
@@ -33,6 +44,11 @@ describe("ArweaveMarket", function () {
     );
     arweaveMarket = await ArweaveMarketFactory.connect(owner).deploy(0, 0);
 
+    usdc = await ethers.getContractAt("IERC20", USDC_ADDRESS);
+
+    fulfillWindow = await arweaveMarket.fulfillWindow();
+    validationWindow = await arweaveMarket.validationWindow();
+
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
 
@@ -42,25 +58,59 @@ describe("ArweaveMarket", function () {
   });
 
   describe("createRequest()", async () => {
-    const hash = ethers.utils.formatBytes32String("test");
     it("should revert if token is address(0)", async () => {
       await expect(
         arweaveMarket
           .connect(requester)
-          .createRequest(
-            ethers.utils.formatBytes32String("test"),
-            ethers.constants.AddressZero,
-            0
-          )
+          .createRequest(defaultFileHash, AddressZero, 0)
       ).to.be.revertedWith("Address: call to non-contract");
+    });
+    it("should revert if payment token is not approved", async () => {
+      await expect(
+        arweaveMarket
+          .connect(requester)
+          .createRequest(defaultFileHash, USDC_ADDRESS, 1)
+      ).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
+    });
+    it("should revert if payment token balance is not enough", async () => {
+      await usdc.connect(requester).approve(arweaveMarket.address, 1);
+      await expect(
+        arweaveMarket
+          .connect(requester)
+          .createRequest(defaultFileHash, USDC_ADDRESS, 1)
+      ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
     });
     it("should create a request", async () => {
       const requestId = await getNextRequestId(arweaveMarket);
+
+      const amount = parseUnits("100", USDC_DECIMALS);
+      await usdc.connect(requester).approve(arweaveMarket.address, amount);
+      await mintUsdc(amount, requesterAddress);
+
+      const balanceBefore = await usdc.balanceOf(requesterAddress);
+
       await expect(
-        arweaveMarket.connect(requester).createRequest(hash, USDC_ADDRESS, 0)
+        arweaveMarket
+          .connect(requester)
+          .createRequest(defaultFileHash, USDC_ADDRESS, amount)
       )
         .to.emit(arweaveMarket, "RequestCreated")
-        .withArgs(requestId, requesterAddress, hash);
+        .withArgs(requestId, requesterAddress, defaultFileHash);
+
+      const balanceAfter = await usdc.balanceOf(requesterAddress);
+      expect(balanceBefore.sub(balanceAfter)).to.be.eq(amount);
+
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[0]).to.be.eq(requestId);
+      expect(request[1]).to.be.eq(defaultFileHash);
+      expect(request[2]).to.be.eq("0x");
+      expect(request[3]).to.be.eq(requesterAddress);
+      expect(request[4]).to.be.eq(AddressZero);
+      expect(request[5]).to.be.eq(usdc.address);
+      expect(request[6]).to.be.eq(amount);
+      expect(request[7]).to.be.eq(0);
+      expect(request[8]).to.be.eq(0);
+      expect(request[9]).to.be.eq(RequestPeriod.Waiting);
     });
   });
 
