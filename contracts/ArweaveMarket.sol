@@ -5,6 +5,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IArweaveMarket} from "./interfaces/IArweaveMarket.sol";
+import {IMarketMediator} from "./interfaces/IMarketMediator.sol";
 
 contract ArweaveMarket is IArweaveMarket, Ownable {
     using SafeERC20 for IERC20;
@@ -118,7 +119,8 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         );
         request.period = RequestPeriod.Disputed;
 
-        _notifyMediator(_requestId);
+        // notify mediator
+        IMarketMediator(mediator).createDispute(_requestId);
 
         emit RequestDisputed(_requestId);
     }
@@ -216,10 +218,6 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         } else {
             IERC20(_token).safeTransfer(_to, _amount);
         }
-    }
-
-    function _notifyMediator(uint256 _requestId) private {
-        // TODO: notify mediator of new dispute
     }
 
     function _reimburse(uint256 _requestId) private {
