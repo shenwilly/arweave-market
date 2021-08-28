@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish } from "ethers";
+import { BigNumber, BigNumberish, ContractReceipt } from "ethers";
 import { ethers, network } from "hardhat";
 import { USDC_ADDRESS, USDC_MINTER } from "../../constants";
 import { ArweaveMarket } from "../../typechain";
@@ -21,7 +21,7 @@ export const mintUsdc = async (amount: BigNumberish, to: string) => {
   await usdc.connect(usdcWalletSigner).transfer(to, amount);
 };
 
-export const getCurrentTimestamp = async () => {
+export const getCurrentTimestamp = async (): Promise<BigNumber> => {
   const block = await ethers.provider.getBlock("latest");
   return BigNumber.from(block.timestamp);
 };
@@ -29,4 +29,10 @@ export const getCurrentTimestamp = async () => {
 export const fastForwardTo = async (expiryTimestamp: number) => {
   await ethers.provider.send("evm_setNextBlockTimestamp", [expiryTimestamp]);
   await ethers.provider.send("evm_mine", []);
+};
+
+export const getTxFee = async (
+  receipt: ContractReceipt
+): Promise<BigNumber> => {
+  return receipt.gasUsed.mul(receipt.effectiveGasPrice);
 };
