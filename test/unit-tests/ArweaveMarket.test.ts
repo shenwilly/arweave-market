@@ -6,6 +6,7 @@ import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import { USDC_ADDRESS, USDC_DECIMALS } from "../../constants";
 import {
+  fastForwardTo,
   getCurrentTimestamp,
   getNextRequestId,
   mintUsdc,
@@ -44,15 +45,17 @@ describe("ArweaveMarket", function () {
     requesterAddress = requester.address;
     takerAddress = taker.address;
 
+    fulfillWindow = validationWindow = BigNumber.from(100);
+
     const ArweaveMarketFactory = <ArweaveMarket__factory>(
       await ethers.getContractFactory("ArweaveMarket")
     );
-    arweaveMarket = await ArweaveMarketFactory.connect(owner).deploy(0, 0);
+    arweaveMarket = await ArweaveMarketFactory.connect(owner).deploy(
+      fulfillWindow,
+      validationWindow
+    );
 
     usdc = await ethers.getContractAt("IERC20", USDC_ADDRESS);
-
-    fulfillWindow = await arweaveMarket.fulfillWindow();
-    validationWindow = await arweaveMarket.validationWindow();
 
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
@@ -215,10 +218,67 @@ describe("ArweaveMarket", function () {
   });
 
   describe("finishRequest()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
-    // it("should create a request", async () => {
-    // });
+    let requestId: BigNumber;
+    let validationDeadlineTimestamp: number;
+    const amount = parseUnits("100", USDC_DECIMALS);
+
+    beforeEach(async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+
+      await usdc.connect(requester).approve(arweaveMarket.address, amount);
+      await mintUsdc(amount, requesterAddress);
+
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, amount);
+      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket
+        .connect(taker)
+        .fulfillRequest(requestId, defaultFileHash);
+
+      const request = await arweaveMarket.requests(requestId);
+      const validationDeadline: BigNumber = request[8];
+      validationDeadlineTimestamp = validationDeadline.toNumber();
+    });
+
+    it("should revert if request doesn't exist", async () => {
+      const requestsLength = await arweaveMarket.getRequestsLength();
+      await expect(
+        arweaveMarket.connect(requester).finishRequest(requestsLength.add(1))
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
+      );
+    });
+    it("should revert if request is not in validating period", async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, 0);
+      await expect(
+        arweaveMarket.connect(requester).finishRequest(requestId)
+      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
+    });
+    it("should revert if request is validation deadline has not been reached", async () => {
+      await expect(
+        arweaveMarket.connect(requester).finishRequest(requestId)
+      ).to.be.revertedWith(
+        "ArweaveMarket::finishRequest:Deadline has not been reached"
+      );
+    });
+    it("should finish request", async () => {
+      await fastForwardTo(validationDeadlineTimestamp);
+      const balanceBefore = await usdc.balanceOf(takerAddress);
+
+      await expect(arweaveMarket.connect(requester).finishRequest(requestId))
+        .to.emit(arweaveMarket, "RequestFinished")
+        .withArgs(requestId);
+
+      const balanceAfter = await usdc.balanceOf(takerAddress);
+      expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
+
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.be.eq(RequestPeriod.Finished);
+    });
   });
 
   describe("cancelRequest()", async () => {
