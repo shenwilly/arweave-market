@@ -143,6 +143,8 @@ describe("ArweaveMarket", function () {
     });
     it("should revert if request is not in waiting period", async () => {
       await arweaveMarket.connect(taker).takeRequest(requestId);
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.not.be.eq(RequestPeriod.Waiting);
       await expect(
         arweaveMarket.connect(taker).takeRequest(requestId)
       ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
@@ -187,6 +189,8 @@ describe("ArweaveMarket", function () {
       await arweaveMarket
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, 0);
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.not.be.eq(RequestPeriod.Processing);
       await expect(
         arweaveMarket
           .connect(taker)
@@ -254,6 +258,8 @@ describe("ArweaveMarket", function () {
       await arweaveMarket
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, 0);
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.not.be.eq(RequestPeriod.Validating);
       await expect(
         arweaveMarket.connect(requester).finishRequest(requestId)
       ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
