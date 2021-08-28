@@ -14,6 +14,7 @@ import {
   fastForwardTo,
   getCurrentTimestamp,
   getNextRequestId,
+  getTxFee,
   mintUsdc,
 } from "../helpers/utils";
 import { Contract } from "@ethersproject/contracts";
@@ -346,14 +347,22 @@ describe("ArweaveMarket", function () {
       const validationDeadlineTimestamp = validationDeadline.toNumber();
 
       await fastForwardTo(validationDeadlineTimestamp);
-      const balanceBefore = await ethers.provider.getBalance(takerAddress);
+      const balanceBeforeContract = await ethers.provider.getBalance(
+        arweaveMarket.address
+      );
+      const balanceBeforeTaker = await ethers.provider.getBalance(takerAddress);
 
       await expect(arweaveMarket.connect(requester).finishRequest(requestId))
         .to.emit(arweaveMarket, "RequestFinished")
         .withArgs(requestId);
 
-      const balanceAfter = await ethers.provider.getBalance(takerAddress);
-      expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
+      const balanceAfterContract = await ethers.provider.getBalance(
+        arweaveMarket.address
+      );
+      expect(balanceBeforeContract.sub(balanceAfterContract)).to.be.eq(amount);
+
+      const balanceAfterTaker = await ethers.provider.getBalance(takerAddress);
+      expect(balanceAfterTaker.sub(balanceBeforeTaker)).to.be.eq(amount);
 
       const request = await arweaveMarket.requests(requestId);
       expect(request[9]).to.be.eq(RequestPeriod.Finished);
@@ -421,7 +430,12 @@ describe("ArweaveMarket", function () {
           value: amount,
         });
 
-      const balanceBefore = await ethers.provider.getBalance(requesterAddress);
+      const balanceBeforeContract = await ethers.provider.getBalance(
+        arweaveMarket.address
+      );
+      const balanceBeforeRequester = await ethers.provider.getBalance(
+        requesterAddress
+      );
 
       const tx = await arweaveMarket
         .connect(requester)
@@ -429,10 +443,19 @@ describe("ArweaveMarket", function () {
       expect(tx).to.emit(arweaveMarket, "RequestCancelled").withArgs(requestId);
 
       const receipt = await tx.wait();
-      const txFee = receipt.gasUsed.mul(receipt.effectiveGasPrice);
+      const txFee = await getTxFee(receipt);
 
-      const balanceAfter = await ethers.provider.getBalance(requesterAddress);
-      expect(balanceAfter.sub(balanceBefore).add(txFee)).to.be.eq(amount);
+      const balanceAfterContract = await ethers.provider.getBalance(
+        arweaveMarket.address
+      );
+      expect(balanceBeforeContract.sub(balanceAfterContract)).to.be.eq(amount);
+
+      const balanceAfterRequester = await ethers.provider.getBalance(
+        requesterAddress
+      );
+      expect(
+        balanceAfterRequester.sub(balanceBeforeRequester).add(txFee)
+      ).to.be.eq(amount);
 
       const request = await arweaveMarket.requests(requestId);
       expect(request[9]).to.be.eq(RequestPeriod.Finished);
