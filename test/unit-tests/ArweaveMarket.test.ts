@@ -313,7 +313,7 @@ describe("ArweaveMarket", function () {
         "ArweaveMarket::finishRequest:Deadline has not been reached"
       );
     });
-    it("should finish request", async () => {
+    it("should finish request (token payment)", async () => {
       await fastForwardTo(validationDeadlineTimestamp);
       const balanceBefore = await usdc.balanceOf(takerAddress);
 
@@ -322,6 +322,37 @@ describe("ArweaveMarket", function () {
         .withArgs(requestId);
 
       const balanceAfter = await usdc.balanceOf(takerAddress);
+      expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
+
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.be.eq(RequestPeriod.Finished);
+    });
+    it("should finish request (ETH payment)", async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+      const amount = parseEther("1");
+
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, DUMMY_ETH_ADDRESS, 0, {
+          value: amount,
+        });
+      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket
+        .connect(taker)
+        .fulfillRequest(requestId, defaultFileHash);
+
+      const requestPre = await arweaveMarket.requests(requestId);
+      const validationDeadline: BigNumber = requestPre[8];
+      const validationDeadlineTimestamp = validationDeadline.toNumber();
+
+      await fastForwardTo(validationDeadlineTimestamp);
+      const balanceBefore = await ethers.provider.getBalance(takerAddress);
+
+      await expect(arweaveMarket.connect(requester).finishRequest(requestId))
+        .to.emit(arweaveMarket, "RequestFinished")
+        .withArgs(requestId);
+
+      const balanceAfter = await ethers.provider.getBalance(takerAddress);
       expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
 
       const request = await arweaveMarket.requests(requestId);
