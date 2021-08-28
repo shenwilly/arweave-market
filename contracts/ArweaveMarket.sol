@@ -150,10 +150,18 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     function _cancelRequest(uint256 _requestId) private {
         ArweaveRequest storage request = requests[_requestId];
         request.period = RequestPeriod.Finished;
-        IERC20(request.paymentToken).safeTransfer(
-            request.requester,
-            request.paymentAmount
-        );
+
+        if (request.paymentToken == ETH_TOKEN) {
+            (bool success, ) = request.requester.call{
+                value: request.paymentAmount
+            }("");
+            require(success, "_transfer: ETH transfer failed");
+        } else {
+            IERC20(request.paymentToken).safeTransfer(
+                request.requester,
+                request.paymentAmount
+            );
+        }
 
         emit RequestCancelled(_requestId);
     }
