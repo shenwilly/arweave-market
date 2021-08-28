@@ -20,3 +20,8 @@ export const mintUsdc = async (amount: BigNumberish, to: string) => {
   const usdcWalletSigner = await ethers.getSigner(USDC_MINTER);
   await usdc.connect(usdcWalletSigner).transfer(to, amount);
 };
+
+export const getCurrentTimestamp = async () => {
+  const block = await ethers.provider.getBlock("latest");
+  return BigNumber.from(block.timestamp);
+};

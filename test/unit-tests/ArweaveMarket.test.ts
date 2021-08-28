@@ -5,7 +5,11 @@ import { ArweaveMarket, ArweaveMarket__factory } from "../../typechain";
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import { USDC_ADDRESS, USDC_DECIMALS } from "../../constants";
-import { getNextRequestId, mintUsdc } from "../helpers/utils";
+import {
+  getCurrentTimestamp,
+  getNextRequestId,
+  mintUsdc,
+} from "../helpers/utils";
 import { Contract } from "@ethersproject/contracts";
 import { parseUnits } from "@ethersproject/units";
 import { BigNumber } from "ethers";
@@ -117,7 +121,7 @@ describe("ArweaveMarket", function () {
 
   describe("takeRequest()", async () => {
     let requestId: BigNumber;
-    const amount = 0
+    const amount = 0;
 
     beforeEach(async () => {
       requestId = await getNextRequestId(arweaveMarket);
@@ -129,38 +133,85 @@ describe("ArweaveMarket", function () {
     it("should revert if request doesn't exist", async () => {
       const requestsLength = await arweaveMarket.getRequestsLength();
       await expect(
-        arweaveMarket
-          .connect(taker)
-          .takeRequest(requestsLength.add(1))
-      ).to.be.revertedWith("reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)");
+        arweaveMarket.connect(taker).takeRequest(requestsLength.add(1))
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
+      );
     });
     it("should revert if request is not in waiting period", async () => {
       await arweaveMarket.connect(taker).takeRequest(requestId);
       await expect(
-        arweaveMarket
-          .connect(taker)
-          .takeRequest(requestId)
+        arweaveMarket.connect(taker).takeRequest(requestId)
       ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
     });
     it("should take request", async () => {
-      await expect(
-        arweaveMarket
-          .connect(taker)
-          .takeRequest(requestId)
-      )
+      await expect(arweaveMarket.connect(taker).takeRequest(requestId))
         .to.emit(arweaveMarket, "RequestTaken")
         .withArgs(requestId, takerAddress);
+      const now = await getCurrentTimestamp();
 
       const request = await arweaveMarket.requests(requestId);
       expect(request[4]).to.be.eq(takerAddress);
+      expect(request[7]).to.be.eq(now.add(fulfillWindow));
+      expect(request[9]).to.be.eq(RequestPeriod.Processing);
     });
   });
 
   describe("fulfillRequest()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
-    // it("should create a request", async () => {
-    // });
+    let requestId: BigNumber;
+    const amount = 0;
+
+    beforeEach(async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, amount);
+      await arweaveMarket.connect(taker).takeRequest(requestId);
+    });
+
+    it("should revert if request doesn't exist", async () => {
+      const requestsLength = await arweaveMarket.getRequestsLength();
+      await expect(
+        arweaveMarket
+          .connect(taker)
+          .fulfillRequest(requestsLength.add(1), defaultArweaveTxId)
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
+      );
+    });
+    it("should revert if request is not in processing period", async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, 0);
+      await expect(
+        arweaveMarket
+          .connect(taker)
+          .fulfillRequest(requestId, defaultArweaveTxId)
+      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
+    });
+    it("should revert if sender is not taker", async () => {
+      await expect(
+        arweaveMarket
+          .connect(requester)
+          .fulfillRequest(requestId, defaultArweaveTxId)
+      ).to.be.revertedWith("ArweaveMarket::fulfillRequest:Sender is not taker");
+    });
+    it("should fulfill request", async () => {
+      await expect(
+        arweaveMarket
+          .connect(taker)
+          .fulfillRequest(requestId, defaultArweaveTxId)
+      )
+        .to.emit(arweaveMarket, "RequestFulfilled")
+        .withArgs(requestId, defaultArweaveTxId);
+      const now = await getCurrentTimestamp();
+
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[2]).to.be.eq(defaultArweaveTxId);
+      expect(request[8]).to.be.eq(now.add(validationWindow));
+      expect(request[9]).to.be.eq(RequestPeriod.Validating);
+    });
   });
 
   describe("finishRequest()", async () => {
