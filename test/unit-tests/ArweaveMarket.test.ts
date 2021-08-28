@@ -429,17 +429,31 @@ describe("ArweaveMarket", function () {
   });
 
   describe("setFulfillWindow()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
-    // it("should create a request", async () => {
-    // });
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        arweaveMarket.connect(requester).setFulfillWindow(0)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should set new fulfill window", async () => {
+      const oldValue = await arweaveMarket.fulfillWindow();
+      const newValue = oldValue.add(1);
+      await arweaveMarket.connect(owner).setFulfillWindow(newValue);
+      expect(await arweaveMarket.fulfillWindow()).to.be.eq(newValue);
+    });
   });
 
   describe("setValidationWindow()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
-    // it("should create a request", async () => {
-    // });
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        arweaveMarket.connect(requester).setValidationWindow(0)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should set new fulfill window", async () => {
+      const oldValue = await arweaveMarket.validationWindow();
+      const newValue = oldValue.add(1);
+      await arweaveMarket.connect(owner).setValidationWindow(newValue);
+      expect(await arweaveMarket.validationWindow()).to.be.eq(newValue);
+    });
   });
 
   describe("getRequestsLength()", async () => {
