@@ -340,6 +340,80 @@ describe("ArweaveMarket", function () {
     });
   });
 
+  describe("cancelRequestTimeout()", async () => {
+    let requestId: BigNumber;
+    let fulfillDeadlineTimestamp: number;
+    const amount = parseUnits("100", USDC_DECIMALS);
+
+    beforeEach(async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+
+      await usdc.connect(requester).approve(arweaveMarket.address, amount);
+      await mintUsdc(amount, requesterAddress);
+
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, amount);
+      await arweaveMarket.connect(taker).takeRequest(requestId);
+
+      const request = await arweaveMarket.requests(requestId);
+      const fulfillDeadline: BigNumber = request[7];
+      fulfillDeadlineTimestamp = fulfillDeadline.toNumber();
+    });
+
+    it("should revert if request doesn't exist", async () => {
+      const requestsLength = await arweaveMarket.getRequestsLength();
+      await expect(
+        arweaveMarket
+          .connect(requester)
+          .cancelRequestTimeout(requestsLength.add(1))
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
+      );
+    });
+    it("should revert if request is not in processing period", async () => {
+      const requestId = await getNextRequestId(arweaveMarket);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, 0);
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.not.be.eq(RequestPeriod.Processing);
+      await expect(
+        arweaveMarket.connect(requester).cancelRequestTimeout(requestId)
+      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
+    });
+    it("should revert if sender is not requester", async () => {
+      await expect(
+        arweaveMarket.connect(taker).cancelRequestTimeout(requestId)
+      ).to.be.revertedWith(
+        "ArweaveMarket::cancelRequestTimeout:Sender is not requester"
+      );
+    });
+    it("should revert if request is fulfill deadline has not been reached", async () => {
+      await expect(
+        arweaveMarket.connect(requester).cancelRequestTimeout(requestId)
+      ).to.be.revertedWith(
+        "ArweaveMarket::cancelRequestTimeout:Deadline has not been reached"
+      );
+    });
+    it("should cancel request", async () => {
+      await fastForwardTo(fulfillDeadlineTimestamp);
+      const balanceBefore = await usdc.balanceOf(requesterAddress);
+
+      await expect(
+        arweaveMarket.connect(requester).cancelRequestTimeout(requestId)
+      )
+        .to.emit(arweaveMarket, "RequestCancelled")
+        .withArgs(requestId);
+
+      const balanceAfter = await usdc.balanceOf(requesterAddress);
+      expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
+
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.be.eq(RequestPeriod.Finished);
+    });
+  });
+
   describe("_finishRequest()", async () => {
     // it("should revert if token is address(0)", async () => {
     // });
