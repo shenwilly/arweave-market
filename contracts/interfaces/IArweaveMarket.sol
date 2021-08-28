@@ -12,8 +12,8 @@ interface IArweaveMarket {
 
     struct ArweaveRequest {
         uint256 id;
-        bytes dataHash;
-        bytes arweaveTxId;
+        string dataHash;
+        string arweaveTxId;
         address requester;
         address taker;
         address paymentToken;
@@ -26,11 +26,11 @@ interface IArweaveMarket {
     event RequestCreated(
         uint256 indexed id,
         address indexed requester,
-        bytes dataHash
+        string dataHash
     );
     event RequestCancelled(uint256 indexed id);
     event RequestTaken(uint256 indexed id, address indexed uploader);
-    event RequestFulfilled(uint256 indexed id, bytes _arweaveTx);
+    event RequestFulfilled(uint256 indexed id, string _arweaveTx);
     event RequestDisputed(uint256 indexed id);
     event RequestFinished(uint256 indexed id);
 }

@@ -30,7 +30,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     }
 
     function createRequest(
-        bytes calldata _dataHash,
+        string calldata _dataHash,
         address _paymentToken,
         uint256 _paymentAmount
     ) external {
@@ -64,7 +64,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         emit RequestTaken(_requestId, msg.sender);
     }
 
-    function fulfillRequest(uint256 _requestId, bytes calldata _arweaveTxId)
+    function fulfillRequest(uint256 _requestId, string calldata _arweaveTxId)
         external
         onlyPeriod(_requestId, RequestPeriod.Processing)
     {
