@@ -1,6 +1,11 @@
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { ArweaveMarket, ArweaveMarket__factory } from "../../typechain";
+import {
+  ArweaveMarket,
+  ArweaveMarket__factory,
+  MockMediator,
+  MockMediator__factory,
+} from "../../typechain";
 
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
@@ -20,6 +25,7 @@ import { Contract } from "@ethersproject/contracts";
 import { parseEther, parseUnits } from "@ethersproject/units";
 import { BigNumber } from "ethers";
 import { RequestPeriod } from "../helpers/types";
+import { request } from "http";
 
 const { expect } = chai;
 chai.use(solidity);
@@ -52,14 +58,20 @@ describe("ArweaveMarket", function () {
 
     fulfillWindow = validationWindow = BigNumber.from(100);
 
+    const MockMediatorFactory = <MockMediator__factory>(
+      await ethers.getContractFactory("MockMediator")
+    );
+    const mediator = await MockMediatorFactory.deploy();
+
     const ArweaveMarketFactory = <ArweaveMarket__factory>(
       await ethers.getContractFactory("ArweaveMarket")
     );
     arweaveMarket = await ArweaveMarketFactory.connect(owner).deploy(
-      ownerAddress,
       fulfillWindow,
       validationWindow
     );
+    await mediator.connect(owner).initMarket(arweaveMarket.address);
+    await arweaveMarket.connect(owner).initMediator(mediator.address);
 
     usdc = await ethers.getContractAt("IERC20", USDC_ADDRESS);
 
@@ -190,7 +202,7 @@ describe("ArweaveMarket", function () {
       expect(request[9]).to.not.be.eq(RequestPeriod.Waiting);
       await expect(
         arweaveMarket.connect(taker).takeRequest(requestId)
-      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
+      ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
     });
     it("should take request", async () => {
       await expect(arweaveMarket.connect(taker).takeRequest(requestId))
@@ -238,7 +250,7 @@ describe("ArweaveMarket", function () {
         arweaveMarket
           .connect(taker)
           .fulfillRequest(requestId, defaultArweaveTxId)
-      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
+      ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
     });
     it("should revert if sender is not taker", async () => {
       await expect(
@@ -313,7 +325,7 @@ describe("ArweaveMarket", function () {
       expect(request[9]).to.not.be.eq(RequestPeriod.Validating);
       await expect(
         arweaveMarket.connect(requester).finishRequest(requestId)
-      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
+      ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
     });
     it("should revert if request is validation deadline has not been reached", async () => {
       await expect(
@@ -406,7 +418,7 @@ describe("ArweaveMarket", function () {
       expect(request[9]).to.not.be.eq(RequestPeriod.Waiting);
       await expect(
         arweaveMarket.connect(requester).cancelRequest(requestId)
-      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
+      ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
     });
     it("should revert if sender is not requester", async () => {
       await expect(
@@ -510,7 +522,7 @@ describe("ArweaveMarket", function () {
       expect(request[9]).to.not.be.eq(RequestPeriod.Processing);
       await expect(
         arweaveMarket.connect(requester).cancelRequestTimeout(requestId)
-      ).to.be.revertedWith("ArweaveMarket:onlyPeriod:Invalid Period");
+      ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
     });
     it("should revert if sender is not requester", async () => {
       await expect(
@@ -611,18 +623,59 @@ describe("ArweaveMarket", function () {
     // });
   });
 
-  describe("setMediator()", async () => {
-    // it("should revert if sender is not owner", async () => {
-    //   await expect(
-    //     arweaveMarket.connect(requester).setFulfillWindow(0)
-    //   ).to.be.revertedWith("Ownable: caller is not the owner");
-    // });
-    // it("should set new fulfill window", async () => {
-    //   const oldValue = await arweaveMarket.fulfillWindow();
-    //   const newValue = oldValue.add(1);
-    //   await arweaveMarket.connect(owner).setFulfillWindow(newValue);
-    //   expect(await arweaveMarket.fulfillWindow()).to.be.eq(newValue);
-    // });
+  describe("initMediator()", async () => {
+    let arweaveMarket: ArweaveMarket;
+    let mediator: MockMediator;
+
+    beforeEach(async () => {
+      const MockMediatorFactory = <MockMediator__factory>(
+        await ethers.getContractFactory("MockMediator")
+      );
+      mediator = await MockMediatorFactory.deploy();
+
+      const ArweaveMarketFactory = <ArweaveMarket__factory>(
+        await ethers.getContractFactory("ArweaveMarket")
+      );
+      arweaveMarket = await ArweaveMarketFactory.connect(owner).deploy(
+        fulfillWindow,
+        validationWindow
+      );
+      await mediator.connect(owner).initMarket(arweaveMarket.address);
+    });
+
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        arweaveMarket.connect(requester).initMediator(ownerAddress)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should revert if mediator is already initialised", async () => {
+      await arweaveMarket.connect(owner).initMediator(mediator.address);
+
+      await expect(
+        arweaveMarket.connect(owner).initMediator(mediator.address)
+      ).to.be.revertedWith(
+        "ArweaveMarket::initMediator:Mediator already initialised"
+      );
+    });
+    it("should revert if new mediator is not IMarketMediator", async () => {
+      await expect(
+        arweaveMarket.connect(owner).initMediator(arweaveMarket.address)
+      ).to.be.revertedWith(
+        "function selector was not recognized and there's no fallback function"
+      );
+    });
+    it("should revert if new mediator is not contract address", async () => {
+      await expect(
+        arweaveMarket.connect(owner).initMediator(requesterAddress)
+      ).to.be.revertedWith("function call to a non-contract account");
+    });
+    it("should set mediator", async () => {
+      const oldValue = await arweaveMarket.mediator();
+      const newValue = mediator.address;
+      expect(oldValue).to.be.not.eq(newValue);
+      await arweaveMarket.connect(owner).initMediator(newValue);
+      expect(await arweaveMarket.mediator()).to.be.eq(newValue);
+    });
   });
 
   describe("setFulfillWindow()", async () => {
