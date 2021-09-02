@@ -25,7 +25,6 @@ import { Contract } from "@ethersproject/contracts";
 import { parseEther, parseUnits } from "@ethersproject/units";
 import { BigNumber } from "ethers";
 import { DisputeWinner, RequestPeriod } from "../helpers/types";
-import { request } from "http";
 
 const { expect } = chai;
 chai.use(solidity);
