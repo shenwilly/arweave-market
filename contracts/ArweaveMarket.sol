@@ -24,7 +24,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     modifier onlyPeriod(uint256 _requestId, RequestPeriod _period) {
         require(
             requests[_requestId].period == _period,
-            "ArweaveMarket:onlyPeriod:Invalid Period"
+            "ArweaveMarket::onlyPeriod:Invalid Period"
         );
         _;
     }
@@ -32,7 +32,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     modifier onlyMediator() {
         require(
             msg.sender == mediator,
-            "ArweaveMarket: Sender is not mediator"
+            "ArweaveMarket::onlyMediator:Sender is not mediator"
         );
         _;
     }
@@ -43,8 +43,14 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     }
 
     function initMediator(address _mediator) public onlyOwner {
-        require(mediator == address(0));
-        require(IMarketMediator(_mediator).getMarket() == address(this)); // sanity check
+        require(
+            mediator == address(0),
+            "ArweaveMarket::initMediator:Mediator already initialised"
+        );
+        require(
+            IMarketMediator(_mediator).getMarket() == address(this),
+            "ArweaveMarket::initMediator:Invalid Mediator"
+        ); // sanity check
         mediator = _mediator;
     }
 
