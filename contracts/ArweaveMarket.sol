@@ -37,14 +37,15 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         _;
     }
 
-    constructor(
-        address _mediator,
-        uint256 _fulfillWindow,
-        uint256 _validationWindow
-    ) {
-        setMediator(_mediator);
+    constructor(uint256 _fulfillWindow, uint256 _validationWindow) {
         setFulfillWindow(_fulfillWindow);
         setValidationWindow(_validationWindow);
+    }
+
+    function initMediator(address _mediator) public onlyOwner {
+        require(mediator == address(0));
+        require(IMarketMediator(_mediator).getMarket() == address(this)); // sanity check
+        mediator = _mediator;
     }
 
     function createRequest(
@@ -222,11 +223,6 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
 
     function _reimburse(uint256 _requestId) private {
         // TODO: punish taker and reimburse requester
-    }
-
-    function setMediator(address _mediator) public onlyOwner {
-        require(IMarketMediator(_mediator).getMarket() == address(this)); // sanity check
-        mediator = _mediator;
     }
 
     function setFulfillWindow(uint256 _fulfillWindow) public onlyOwner {
