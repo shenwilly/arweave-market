@@ -5,3 +5,9 @@ export enum RequestPeriod {
   Disputed,
   Finished,
 }
+
+export enum DisputeWinner {
+  None,
+  Requester,
+  Taker,
+}

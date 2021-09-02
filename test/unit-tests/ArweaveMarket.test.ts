@@ -24,7 +24,7 @@ import {
 import { Contract } from "@ethersproject/contracts";
 import { parseEther, parseUnits } from "@ethersproject/units";
 import { BigNumber } from "ethers";
-import { RequestPeriod } from "../helpers/types";
+import { DisputeWinner, RequestPeriod } from "../helpers/types";
 import { request } from "http";
 
 const { expect } = chai;
@@ -41,6 +41,7 @@ describe("ArweaveMarket", function () {
   let usdc: Contract;
 
   let arweaveMarket: ArweaveMarket;
+  let mediator: MockMediator;
   let fulfillWindow: BigNumber;
   let validationWindow: BigNumber;
 
@@ -61,7 +62,7 @@ describe("ArweaveMarket", function () {
     const MockMediatorFactory = <MockMediator__factory>(
       await ethers.getContractFactory("MockMediator")
     );
-    const mediator = await MockMediatorFactory.deploy();
+    mediator = await MockMediatorFactory.deploy();
 
     const ArweaveMarketFactory = <ArweaveMarket__factory>(
       await ethers.getContractFactory("ArweaveMarket")
@@ -365,7 +366,81 @@ describe("ArweaveMarket", function () {
   });
 
   describe("resolveDispute()", async () => {
-    // TODO
+    let requestId: BigNumber;
+    const amount = 0;
+
+    beforeEach(async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, amount);
+      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket
+        .connect(taker)
+        .fulfillRequest(requestId, defaultArweaveTxId);
+      await arweaveMarket.connect(requester).disputeRequest(requestId);
+    });
+
+    it("should revert if request doesn't exist", async () => {
+      const requestsLength = await arweaveMarket.getRequestsLength();
+      await expect(
+        mediator
+          .connect(requester)
+          .resolveDispute(requestsLength.add(1), DisputeWinner.None)
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
+      );
+    });
+    it("should revert if request is not in validating period", async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, 0);
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.not.be.eq(RequestPeriod.Validating);
+      await expect(
+        mediator
+          .connect(requester)
+          .resolveDispute(requestId, DisputeWinner.None)
+      ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
+    });
+    it("should revert if sender is not mediator", async () => {
+      await expect(
+        arweaveMarket
+          .connect(requester)
+          .resolveDispute(requestId, DisputeWinner.None)
+      ).to.be.revertedWith(
+        "ArweaveMarket::onlyMediator:Sender is not mediator"
+      );
+    });
+    it("should resolve (None)", async () => {
+      await expect(
+        mediator
+          .connect(requester)
+          .resolveDispute(requestId, DisputeWinner.None)
+      )
+        .to.emit(arweaveMarket, "RequestCancelled")
+        .withArgs(requestId);
+    });
+    it("should resolve (Requester)", async () => {
+      await expect(
+        mediator
+          .connect(requester)
+          .resolveDispute(requestId, DisputeWinner.Requester)
+      )
+        .to.emit(arweaveMarket, "RequestCancelled")
+        .withArgs(requestId);
+      // TODO: reimburse implementation
+    });
+    it("should resolve (Taker)", async () => {
+      await expect(
+        mediator
+          .connect(requester)
+          .resolveDispute(requestId, DisputeWinner.Taker)
+      )
+        .to.emit(arweaveMarket, "RequestFinished")
+        .withArgs(requestId);
+    });
   });
 
   describe("finishRequest()", async () => {
