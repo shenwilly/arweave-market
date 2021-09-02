@@ -6,7 +6,8 @@ import {IMarketMediator} from "../interfaces/IMarketMediator.sol";
 contract MockMediator is IMarketMediator {
     address market;
 
-    constructor(address _market) {
+    function initMarket(address _market) external {
+        require(market == address(0));
         market = _market;
     }
 

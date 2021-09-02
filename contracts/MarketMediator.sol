@@ -8,7 +8,7 @@ import {IArbitrable} from "./interfaces/IArbitrable.sol";
 import {IArbitrator} from "./interfaces/IArbitrator.sol";
 
 contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
-    address public immutable market;
+    address public market;
 
     address public arbitrator;
     bytes public arbitrationExtraData;
@@ -35,15 +35,18 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
     }
 
     constructor(
-        address _market,
         address _arbitrator,
         bytes memory _arbitrationExtraData,
         uint256 _disputeWindow
     ) {
-        market = _market;
         arbitrator = _arbitrator;
         arbitrationExtraData = _arbitrationExtraData;
         disputeWindow = _disputeWindow;
+    }
+
+    function initMarket(address _market) external onlyOwner {
+        require(market == address(0));
+        market = _market;
     }
 
     function createDispute(uint256 _requestId) external override onlyMarket {
