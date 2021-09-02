@@ -23,4 +23,6 @@ interface IMarketMediator {
     );
 
     function createDispute(uint256 _requestId) external;
+
+    function getMarket() external view returns (address);
 }

@@ -225,6 +225,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     }
 
     function setMediator(address _mediator) public onlyOwner {
+        require(IMarketMediator(_mediator).getMarket() == address(this)); // sanity check
         mediator = _mediator;
     }
 

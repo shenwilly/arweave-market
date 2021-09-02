@@ -150,4 +150,8 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
     {
         return disputes[_disputeId].requestId;
     }
+
+    function getMarket() public view override returns (address) {
+        return market;
+    }
 }
