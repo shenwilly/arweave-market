@@ -42,9 +42,9 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         uint256 _fulfillWindow,
         uint256 _validationWindow
     ) {
-        mediator = _mediator;
-        fulfillWindow = _fulfillWindow;
-        validationWindow = _validationWindow;
+        setMediator(_mediator);
+        setFulfillWindow(_fulfillWindow);
+        setValidationWindow(_validationWindow);
     }
 
     function createRequest(
