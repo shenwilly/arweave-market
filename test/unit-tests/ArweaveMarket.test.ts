@@ -277,7 +277,91 @@ describe("ArweaveMarket", function () {
   });
 
   describe("disputeRequest()", async () => {
-    // TODO
+    let requestId: BigNumber;
+    const amount = 0;
+
+    beforeEach(async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, amount);
+      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket
+        .connect(taker)
+        .fulfillRequest(requestId, defaultArweaveTxId);
+    });
+
+    it("should revert if request doesn't exist", async () => {
+      const requestsLength = await arweaveMarket.getRequestsLength();
+      await expect(
+        arweaveMarket.connect(requester).disputeRequest(requestsLength.add(1))
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
+      );
+    });
+    it("should revert if request is not in validating period", async () => {
+      requestId = await getNextRequestId(arweaveMarket);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, 0);
+      const request = await arweaveMarket.requests(requestId);
+      expect(request[9]).to.not.be.eq(RequestPeriod.Validating);
+      await expect(
+        arweaveMarket.connect(requester).disputeRequest(requestId)
+      ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
+    });
+    it("should revert if sender is not requester", async () => {
+      await expect(
+        arweaveMarket.connect(taker).disputeRequest(requestId)
+      ).to.be.revertedWith(
+        "ArweaveMarket::disputeRequest:Sender is not requester"
+      );
+    });
+    it("should revert if validation deadline has been reached", async () => {
+      const request = await arweaveMarket.requests(requestId);
+      const validationDeadline: BigNumber = request[8];
+      const validationDeadlineTimestamp = validationDeadline.toNumber();
+      await fastForwardTo(validationDeadlineTimestamp);
+
+      await expect(
+        arweaveMarket.connect(requester).disputeRequest(requestId)
+      ).to.be.revertedWith(
+        "ArweaveMarket::disputeRequest:Validation deadline has been reached"
+      );
+    });
+    it("should revert if mediator is not initialised", async () => {
+      const MockMediatorFactory = <MockMediator__factory>(
+        await ethers.getContractFactory("MockMediator")
+      );
+      const mediator = await MockMediatorFactory.deploy();
+
+      const ArweaveMarketFactory = <ArweaveMarket__factory>(
+        await ethers.getContractFactory("ArweaveMarket")
+      );
+      const arweaveMarket = await ArweaveMarketFactory.connect(owner).deploy(
+        fulfillWindow,
+        validationWindow
+      );
+      await mediator.connect(owner).initMarket(arweaveMarket.address);
+
+      const requestId = await getNextRequestId(arweaveMarket);
+      await arweaveMarket
+        .connect(requester)
+        .createRequest(defaultFileHash, USDC_ADDRESS, amount);
+      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket
+        .connect(taker)
+        .fulfillRequest(requestId, defaultArweaveTxId);
+
+      await expect(
+        arweaveMarket.connect(requester).disputeRequest(requestId)
+      ).to.be.revertedWith("function call to a non-contract account");
+    });
+    it("should dispute request", async () => {
+      await expect(arweaveMarket.connect(requester).disputeRequest(requestId))
+        .to.emit(arweaveMarket, "RequestDisputed")
+        .withArgs(requestId);
+    });
   });
 
   describe("resolveDispute()", async () => {
