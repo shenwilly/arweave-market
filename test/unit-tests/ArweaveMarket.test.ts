@@ -6,7 +6,6 @@ import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import {
   DUMMY_ETH_ADDRESS,
-  ERC20_DECIMALS,
   USDC_ADDRESS,
   USDC_DECIMALS,
 } from "../../constants";
@@ -57,6 +56,7 @@ describe("ArweaveMarket", function () {
       await ethers.getContractFactory("ArweaveMarket")
     );
     arweaveMarket = await ArweaveMarketFactory.connect(owner).deploy(
+      ownerAddress,
       fulfillWindow,
       validationWindow
     );
@@ -264,6 +264,14 @@ describe("ArweaveMarket", function () {
     });
   });
 
+  describe("disputeRequest()", async () => {
+    // TODO
+  });
+
+  describe("resolveDispute()", async () => {
+    // TODO
+  });
+
   describe("finishRequest()", async () => {
     let requestId: BigNumber;
     let validationDeadlineTimestamp: number;
@@ -311,7 +319,7 @@ describe("ArweaveMarket", function () {
       await expect(
         arweaveMarket.connect(requester).finishRequest(requestId)
       ).to.be.revertedWith(
-        "ArweaveMarket::finishRequest:Deadline has not been reached"
+        "ArweaveMarket::finishRequest:Validation deadline has not been reached"
       );
     });
     it("should finish request (token payment)", async () => {
@@ -515,7 +523,7 @@ describe("ArweaveMarket", function () {
       await expect(
         arweaveMarket.connect(requester).cancelRequestTimeout(requestId)
       ).to.be.revertedWith(
-        "ArweaveMarket::cancelRequestTimeout:Deadline has not been reached"
+        "ArweaveMarket::cancelRequestTimeout:Fulfill deadline has not been reached"
       );
     });
     it("should cancel request (token payment)", async () => {
@@ -593,6 +601,27 @@ describe("ArweaveMarket", function () {
     // it("should revert if token is address(0)", async () => {
     // });
     // it("should create a request", async () => {
+    // });
+  });
+
+  describe("_reimburse()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+    // it("should create a request", async () => {
+    // });
+  });
+
+  describe("setMediator()", async () => {
+    // it("should revert if sender is not owner", async () => {
+    //   await expect(
+    //     arweaveMarket.connect(requester).setFulfillWindow(0)
+    //   ).to.be.revertedWith("Ownable: caller is not the owner");
+    // });
+    // it("should set new fulfill window", async () => {
+    //   const oldValue = await arweaveMarket.fulfillWindow();
+    //   const newValue = oldValue.add(1);
+    //   await arweaveMarket.connect(owner).setFulfillWindow(newValue);
+    //   expect(await arweaveMarket.fulfillWindow()).to.be.eq(newValue);
     // });
   });
 
