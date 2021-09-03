@@ -3,6 +3,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
   ArweaveMarketMediator,
   ArweaveMarketMediator__factory,
+  MockArbitrator,
   MockArbitrator__factory,
   MockMarket,
   MockMarket__factory,
@@ -42,6 +43,7 @@ describe("ArweaveMarketMediator", function () {
 
   let arweaveMarket: MockMarket;
   let mediator: ArweaveMarketMediator;
+  let arbitrator: MockArbitrator;
   let fulfillWindow: BigNumber;
   let validationWindow: BigNumber;
   let disputeWindow: BigNumber;
@@ -63,7 +65,7 @@ describe("ArweaveMarketMediator", function () {
     const MockArbitratorFactory = <MockArbitrator__factory>(
       await ethers.getContractFactory("MockArbitrator")
     );
-    const arbitrator = await MockArbitratorFactory.deploy();
+    arbitrator = await MockArbitratorFactory.deploy();
 
     const MarketMediatorFactory = <ArweaveMarketMediator__factory>(
       await ethers.getContractFactory("ArweaveMarketMediator")
@@ -92,8 +94,46 @@ describe("ArweaveMarketMediator", function () {
   });
 
   describe("initMarket()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    let arweaveMarket: MockMarket;
+    let mediator: ArweaveMarketMediator;
+
+    beforeEach(async () => {
+      const MarketMediatorFactory = <ArweaveMarketMediator__factory>(
+        await ethers.getContractFactory("ArweaveMarketMediator")
+      );
+      mediator = await MarketMediatorFactory.deploy(
+        requesterAddress,
+        "0x",
+        disputeWindow
+      );
+
+      const MockMarketFactory = <MockMarket__factory>(
+        await ethers.getContractFactory("MockMarket")
+      );
+      arweaveMarket = await MockMarketFactory.connect(owner).deploy();
+    });
+
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        mediator.connect(requester).initMarket(arweaveMarket.address)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should revert if mediator is already initialised", async () => {
+      await mediator.connect(owner).initMarket(arweaveMarket.address);
+
+      await expect(
+        mediator.connect(owner).initMarket(arweaveMarket.address)
+      ).to.be.revertedWith(
+        "MarketMediator::initMarket:Market already initialised"
+      );
+    });
+    it("should set market", async () => {
+      const oldValue = await mediator.market();
+      const newValue = mediator.address;
+      expect(oldValue).to.be.not.eq(newValue);
+      await mediator.connect(owner).initMarket(newValue);
+      expect(await mediator.market()).to.be.eq(newValue);
+    });
   });
 
   describe("createDispute()", async () => {
