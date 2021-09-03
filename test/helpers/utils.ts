@@ -1,12 +1,18 @@
 import { BigNumber, BigNumberish, ContractReceipt } from "ethers";
 import { ethers, network } from "hardhat";
 import { USDC_ADDRESS, USDC_MINTER } from "../../constants";
-import { ArweaveMarket } from "../../typechain";
+import { ArweaveMarket, ArweaveMarketMediator } from "../../typechain";
 
 export const getNextRequestId = async (
   arweaveMarket: ArweaveMarket
 ): Promise<BigNumber> => {
   return await arweaveMarket.getRequestsLength();
+};
+
+export const getNextDisputeId = async (
+  mediator: ArweaveMarketMediator
+): Promise<BigNumber> => {
+  return await mediator.getDisputesLength();
 };
 
 export const mintUsdc = async (amount: BigNumberish, to: string) => {
