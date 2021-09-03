@@ -11,7 +11,6 @@ import {
 
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
-import { USDC_ADDRESS } from "../../constants";
 import { fastForwardTo } from "../helpers/utils";
 import { BigNumber } from "ethers";
 import { DisputeWinner } from "../helpers/types";
@@ -62,8 +61,6 @@ describe("ArweaveMarketMediator", function () {
     arweaveMarket = await MockMarketFactory.connect(owner).deploy();
     await mediator.connect(owner).initMarket(arweaveMarket.address);
     // await arweaveMarket.connect(owner).initMediator(mediator.address);
-
-    usdc = await ethers.getContractAt("IERC20", USDC_ADDRESS);
 
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
