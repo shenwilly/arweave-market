@@ -15,6 +15,7 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
 
     Dispute[] public disputes;
     mapping(uint256 => uint256) public requestToDispute;
+    mapping(uint256 => uint256) public arbitratorDisputeToDispute;
 
     uint256 disputeWindow;
 
@@ -91,29 +92,21 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
             value: cost
         }(2, bytes(""));
         dispute.arbitratorDisputeId = arbitratorDisputeId;
+        arbitratorDisputeToDispute[arbitratorDisputeId] = _disputeId;
 
         emit DisputeEscalated(_disputeId);
     }
 
+    // arbitrable spec
     function rule(uint256 _disputeID, uint256 _ruling)
         external
         override
         onlyArbitrator
     {
-        ruleDispute(_disputeID, IArweaveMarket.DisputeWinner(_ruling));
+        uint256 disputeId = arbitratorDisputeToDispute[_disputeID];
+        _ruleDispute(disputeId, IArweaveMarket.DisputeWinner(_ruling));
 
         emit Ruling(IArbitrator(arbitrator), _disputeID, _ruling); // ERC792 Arbitrable event
-    }
-
-    function ruleDispute(
-        uint256 _disputeId,
-        IArweaveMarket.DisputeWinner _winner
-    ) internal {
-        Dispute storage dispute = disputes[_disputeId];
-        require(!dispute.arbitratorRuled);
-
-        dispute.winner = _winner;
-        dispute.arbitratorRuled = true;
     }
 
     function resolveDispute(uint256 _disputeId) public {
@@ -132,6 +125,17 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
         );
 
         emit DisputeResolved(_disputeId, dispute.winner);
+    }
+
+    function _ruleDispute(
+        uint256 _disputeId,
+        IArweaveMarket.DisputeWinner _winner
+    ) internal {
+        Dispute storage dispute = disputes[_disputeId];
+        require(!dispute.arbitratorRuled);
+
+        dispute.winner = _winner;
+        dispute.arbitratorRuled = true;
     }
 
     function getArbitrationCost() public view returns (uint256) {
