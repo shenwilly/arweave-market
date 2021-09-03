@@ -11,22 +11,10 @@ import {
 
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
-import {
-  DUMMY_ETH_ADDRESS,
-  USDC_ADDRESS,
-  USDC_DECIMALS,
-} from "../../constants";
-import {
-  fastForwardTo,
-  getCurrentTimestamp,
-  getNextRequestId,
-  getTxFee,
-  mintUsdc,
-} from "../helpers/utils";
-import { Contract } from "@ethersproject/contracts";
-import { parseEther, parseUnits } from "@ethersproject/units";
+import { USDC_ADDRESS } from "../../constants";
+import { fastForwardTo } from "../helpers/utils";
 import { BigNumber } from "ethers";
-import { DisputeWinner, RequestPeriod } from "../helpers/types";
+import { DisputeWinner } from "../helpers/types";
 
 const { expect } = chai;
 chai.use(solidity);
@@ -39,20 +27,12 @@ describe("ArweaveMarketMediator", function () {
   let requesterAddress: string;
   let takerAddress: string;
 
-  let usdc: Contract;
-
   let arweaveMarket: MockMarket;
   let mediator: ArweaveMarketMediator;
   let arbitrator: MockArbitrator;
-  let fulfillWindow: BigNumber;
-  let validationWindow: BigNumber;
   let disputeWindow: BigNumber;
 
   let snapshotId: string; // EVM snapshot before each test
-
-  const defaultFileHash = "sample-file-hash";
-  const defaultArweaveTxId = "lOBCN7P_-hfZAXPNP92LLyek_h71I1KxrT2akqT-zfU";
-  const AddressZero = ethers.constants.AddressZero;
 
   before("setup contracts", async () => {
     [owner, requester, taker] = await ethers.getSigners();
@@ -60,7 +40,7 @@ describe("ArweaveMarketMediator", function () {
     requesterAddress = requester.address;
     takerAddress = taker.address;
 
-    fulfillWindow = validationWindow = disputeWindow = BigNumber.from(100);
+    disputeWindow = BigNumber.from(100);
 
     const MockArbitratorFactory = <MockArbitrator__factory>(
       await ethers.getContractFactory("MockArbitrator")
@@ -137,52 +117,104 @@ describe("ArweaveMarketMediator", function () {
   });
 
   describe("createDispute()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    it("should revert if sender is not market", async () => {
+      // TODO
+    });
+    it("should create dispute", async () => {
+      // TODO
+    });
   });
 
   describe("setDisputeWinner()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    it("should revert if sender is not owner", async () => {
+      // TODO
+    });
+    it("should revert if dispute is already resolved", async () => {
+      // TODO
+    });
+    it("should revert if dispute deadline has been reached", async () => {
+      // TODO
+    });
+    it("should revert if dispute has been escalated to arbitrator", async () => {
+      // TODO
+    });
+    it("should set the dispute winner", async () => {
+      // TODO
+    });
   });
 
   describe("escalateDispute()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    it("should revert if dispute is already resolved", async () => {
+      // TODO
+    });
+    it("should revert if dispute deadline has been reached", async () => {
+      // TODO
+    });
+    it("should revert if dispute has been escalated to arbitrator", async () => {
+      // TODO
+    });
+    it("should revert if sent ETH doesn't equal arbitration cost", async () => {
+      // TODO
+    });
+    it("should escalate dispute", async () => {
+      // TODO
+    });
   });
 
   describe("rule()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    it("should revert if sender is not arbitrator", async () => {
+      // TODO
+    });
+    it("should rule escalated dispute", async () => {
+      // TODO
+    });
   });
 
   describe("resolveDispute()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    it("should revert if dispute is already resolved", async () => {
+      // TODO
+    });
+    it("should revert if dispute deadline has not been reached", async () => {
+      // TODO
+    });
+    it("should revert if arbitrator has not given ruling yet (only escalated)", async () => {
+      // TODO
+    });
+    it("should resolve dispute", async () => {
+      // TODO
+    });
   });
 
   describe("_ruleDispute()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    it("should revert if dispute is not escalated", async () => {
+      // TODO
+    });
+    it("should revert if dispute is already ruled", async () => {
+      // TODO
+    });
   });
 
   describe("getArbitrationCost()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    it("should return arbitration cost", async () => {
+      // TODO
+    });
   });
 
   describe("getDisputeIdFromRequestId()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    it("should return requestId", async () => {
+      // TODO
+    });
   });
 
   describe("getRequestIdFromDisputeId()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    it("should return requestId", async () => {
+      // TODO
+    });
   });
 
   describe("getMarket()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
+    it("should return market address", async () => {
+      // TODO
+    });
   });
 });
