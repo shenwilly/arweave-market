@@ -18,6 +18,7 @@ import {
 } from "../helpers/utils";
 import { BigNumber } from "ethers";
 import { DisputeWinner } from "../helpers/types";
+import { parseEther } from "@ethersproject/units";
 
 const { expect } = chai;
 chai.use(solidity);
@@ -33,7 +34,9 @@ describe("ArweaveMarketMediator", function () {
   let arweaveMarket: MockMarket;
   let mediator: ArweaveMarketMediator;
   let arbitrator: MockArbitrator;
+
   let disputeWindow: BigNumber;
+  let arbitrationCost: BigNumber;
 
   let snapshotId: string; // EVM snapshot before each test
 
@@ -48,7 +51,8 @@ describe("ArweaveMarketMediator", function () {
     const MockArbitratorFactory = <MockArbitrator__factory>(
       await ethers.getContractFactory("MockArbitrator")
     );
-    arbitrator = await MockArbitratorFactory.deploy();
+    arbitrator = await MockArbitratorFactory.deploy(parseEther("0.1"));
+    arbitrationCost = await arbitrator.arbitrationCost("0x");
 
     const MarketMediatorFactory = <ArweaveMarketMediator__factory>(
       await ethers.getContractFactory("ArweaveMarketMediator")
@@ -201,7 +205,6 @@ describe("ArweaveMarketMediator", function () {
       );
     });
     it("should revert if dispute has been escalated to arbitrator", async () => {
-      const arbitrationCost = await mediator.getArbitrationCost();
       await mediator.connect(requester).escalateDispute(disputeId, {
         value: arbitrationCost,
       });
@@ -227,20 +230,75 @@ describe("ArweaveMarketMediator", function () {
   });
 
   describe("escalateDispute()", async () => {
+    let disputeId: BigNumber;
+
+    beforeEach(async () => {
+      disputeId = await getNextDisputeId(mediator);
+      await arweaveMarket.connect(requester).createDispute(0, mediator.address);
+    });
+
+    it("should revert if dispute doesn't exist", async () => {
+      const requestsLength = await mediator.getDisputesLength();
+      await expect(
+        mediator.connect(owner).escalateDispute(requestsLength.add(1))
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
+      );
+    });
     it("should revert if dispute is already resolved", async () => {
-      // TODO
+      const request = await mediator.disputes(disputeId);
+      const deadline: BigNumber = request[2];
+      const deadlineTimestamp = deadline.toNumber();
+      await fastForwardTo(deadlineTimestamp);
+
+      await mediator.connect(owner).resolveDispute(disputeId);
+      await expect(
+        mediator.connect(owner).escalateDispute(disputeId)
+      ).to.be.revertedWith(
+        "MarketMediator::escalateDispute:Dispute already resolved"
+      );
     });
     it("should revert if dispute deadline has been reached", async () => {
-      // TODO
+      const dispute = await mediator.disputes(disputeId);
+      const deadline: BigNumber = dispute[2];
+      const deadlineTimestamp = deadline.toNumber();
+      await fastForwardTo(deadlineTimestamp);
+
+      await expect(
+        mediator.connect(owner).escalateDispute(disputeId)
+      ).to.be.revertedWith(
+        "MarketMediator::escalateDispute:Deadline has been reached"
+      );
     });
     it("should revert if dispute has been escalated to arbitrator", async () => {
-      // TODO
+      await mediator.connect(owner).escalateDispute(disputeId, {
+        value: arbitrationCost,
+      });
+
+      await expect(
+        mediator.connect(owner).escalateDispute(disputeId)
+      ).to.be.revertedWith(
+        "MarketMediator::escalateDispute:Dispute has been escalated to arbitrator"
+      );
     });
     it("should revert if sent ETH doesn't equal arbitration cost", async () => {
-      // TODO
+      await expect(
+        mediator.connect(owner).escalateDispute(disputeId, {
+          value: arbitrationCost.add(1),
+        })
+      ).to.be.revertedWith("MarketMediator::escalateDispute:Invalid msg.value");
     });
     it("should escalate dispute", async () => {
-      // TODO
+      await expect(
+        mediator.connect(owner).escalateDispute(disputeId, {
+          value: arbitrationCost,
+        })
+      )
+        .to.emit(mediator, "DisputeEscalated")
+        .withArgs(disputeId);
+
+      const dispute = await mediator.disputes(disputeId);
+      expect(dispute[3]).to.be.eq(true);
     });
   });
 

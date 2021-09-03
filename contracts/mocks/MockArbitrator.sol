@@ -4,6 +4,12 @@ pragma solidity ^0.8.0;
 import {IArbitrator} from "../interfaces/IArbitrator.sol";
 
 contract MockArbitrator is IArbitrator {
+    uint256 baseCost;
+
+    constructor(uint256 _cost) {
+        baseCost = _cost;
+    }
+
     function createDispute(uint256 _choices, bytes calldata _extraData)
         external
         payable
@@ -19,7 +25,7 @@ contract MockArbitrator is IArbitrator {
         override
         returns (uint256 cost)
     {
-        return 0;
+        return baseCost;
     }
 
     function appeal(uint256 _disputeID, bytes calldata _extraData)
