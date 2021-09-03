@@ -53,6 +53,7 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
         market = _market;
     }
 
+    // trust market not to dispute same request twice
     function createDispute(uint256 _requestId) external override onlyMarket {
         uint256 disputeId = disputes.length;
         Dispute memory dispute;
@@ -194,6 +195,10 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
         returns (uint256)
     {
         return disputes[_disputeId].requestId;
+    }
+
+    function getDisputesLength() public view returns (uint256) {
+        return disputes.length;
     }
 
     function getMarket() public view override returns (address) {
