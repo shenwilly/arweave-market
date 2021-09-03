@@ -90,4 +90,59 @@ describe("ArweaveMarketMediator", function () {
     await ethers.provider.send("evm_revert", [snapshotId]);
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
+
+  describe("initMarket()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
+
+  describe("createDispute()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
+
+  describe("setDisputeWinner()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
+
+  describe("escalateDispute()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
+
+  describe("rule()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
+
+  describe("resolveDispute()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
+
+  describe("_ruleDispute()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
+
+  describe("getArbitrationCost()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
+
+  describe("getDisputeIdFromRequestId()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
+
+  describe("getRequestIdFromDisputeId()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
+
+  describe("getMarket()", async () => {
+    // it("should revert if token is address(0)", async () => {
+    // });
+  });
 });
