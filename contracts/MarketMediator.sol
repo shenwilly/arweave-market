@@ -46,7 +46,10 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
     }
 
     function initMarket(address _market) external onlyOwner {
-        require(market == address(0));
+        require(
+            market == address(0),
+            "MarketMediator::initMarket:Market already initialised"
+        );
         market = _market;
     }
 
@@ -68,25 +71,43 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
     ) external onlyOwner {
         Dispute storage dispute = disputes[_disputeId];
         require(
-            !dispute.resolved &&
-                dispute.deadline >= block.timestamp &&
-                !dispute.escalatedToArbitrator
+            !dispute.resolved,
+            "MarketMediator::setDisputeWinner:Dispute already resolved"
         );
+        require(
+            dispute.deadline >= block.timestamp,
+            "MarketMediator::setDisputeWinner:Deadline has been reached"
+        );
+        require(
+            !dispute.escalatedToArbitrator,
+            "MarketMediator::setDisputeWinner:Dispute has been escalated to arbitrator"
+        );
+
         dispute.winner = _winner;
     }
 
     function escalateDispute(uint256 _disputeId) external payable {
         Dispute storage dispute = disputes[_disputeId];
         require(
-            !dispute.resolved &&
-                dispute.deadline >= block.timestamp &&
-                !dispute.escalatedToArbitrator
+            !dispute.resolved,
+            "MarketMediator::escalateDispute:Dispute already resolved"
+        );
+        require(
+            dispute.deadline >= block.timestamp,
+            "MarketMediator::escalateDispute:Deadline has been reached"
+        );
+        require(
+            !dispute.escalatedToArbitrator,
+            "MarketMediator::escalateDispute:Dispute has been escalated to arbitrator"
         );
 
         dispute.escalatedToArbitrator = true;
 
         uint256 cost = getArbitrationCost();
-        require(msg.value == cost);
+        require(
+            msg.value == cost,
+            "MarketMediator::escalateDispute:Invalid msg.value"
+        );
 
         uint256 arbitratorDisputeId = IArbitrator(arbitrator).createDispute{
             value: cost
@@ -111,10 +132,20 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
 
     function resolveDispute(uint256 _disputeId) public {
         Dispute storage dispute = disputes[_disputeId];
-        require(!dispute.resolved && dispute.deadline < block.timestamp);
+        require(
+            !dispute.resolved,
+            "MarketMediator::resolveDispute:Dispute already resolved"
+        );
+        require(
+            dispute.deadline < block.timestamp,
+            "MarketMediator::resolveDispute:Deadline has not been reached"
+        );
 
         if (dispute.escalatedToArbitrator) {
-            require(dispute.arbitratorRuled);
+            require(
+                dispute.arbitratorRuled,
+                "MarketMediator::resolveDispute:Arbitrator has not ruled yet"
+            );
         }
 
         dispute.resolved = true;
@@ -132,7 +163,14 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
         IArweaveMarket.DisputeWinner _winner
     ) internal {
         Dispute storage dispute = disputes[_disputeId];
-        require(!dispute.arbitratorRuled);
+        require(
+            dispute.escalatedToArbitrator,
+            "MarketMediator::_ruleDispute:Dispute is not escalated"
+        );
+        require(
+            !dispute.arbitratorRuled,
+            "MarketMediator::_ruleDispute:Dispute is already ruled"
+        );
 
         dispute.winner = _winner;
         dispute.arbitratorRuled = true;
