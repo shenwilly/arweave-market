@@ -11,7 +11,7 @@ import {
 
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
-import { fastForwardTo } from "../helpers/utils";
+import { fastForwardTo, getCurrentTimestamp } from "../helpers/utils";
 import { BigNumber } from "ethers";
 import { DisputeWinner } from "../helpers/types";
 
@@ -115,10 +115,34 @@ describe("ArweaveMarketMediator", function () {
 
   describe("createDispute()", async () => {
     it("should revert if sender is not market", async () => {
-      // TODO
+      await expect(mediator.connect(owner).createDispute(0)).to.be.revertedWith(
+        "MarketMediator::onlyMarket:Sender is not market"
+      );
     });
     it("should create dispute", async () => {
-      // TODO
+      const disputeId = await mediator.getDisputesLength();
+      const requestId = 0;
+      await expect(
+        arweaveMarket
+          .connect(requester)
+          .createDispute(requestId, mediator.address)
+      )
+        .to.emit(mediator, "DisputeCreated")
+        .withArgs(disputeId, requestId);
+
+      const dispute = await mediator.disputes(disputeId);
+      const now = await getCurrentTimestamp();
+
+      expect(dispute[0]).to.be.eq(disputeId);
+      expect(dispute[1]).to.be.eq(requestId);
+      expect(dispute[2]).to.be.eq(now.add(disputeWindow));
+      expect(dispute[3]).to.be.eq(false);
+      expect(dispute[4]).to.be.eq(0);
+      expect(dispute[5]).to.be.eq(false);
+      expect(dispute[6]).to.be.eq(0);
+      expect(dispute[7]).to.be.eq(false);
+
+      expect(await mediator.requestToDispute(requestId)).to.be.eq(disputeId);
     });
   });
 
