@@ -303,11 +303,35 @@ describe("ArweaveMarketMediator", function () {
   });
 
   describe("rule()", async () => {
+    let disputeId: BigNumber;
+    let arbitratorDisputeId: BigNumber;
+
+    beforeEach(async () => {
+      disputeId = await getNextDisputeId(mediator);
+      await arweaveMarket.connect(requester).createDispute(0, mediator.address);
+      await mediator.escalateDispute(disputeId, {
+        value: arbitrationCost,
+      });
+
+      const dispute = await mediator.disputes(disputeId);
+      arbitratorDisputeId = dispute[4];
+    });
+
     it("should revert if sender is not arbitrator", async () => {
-      // TODO
+      await expect(mediator.connect(requester).rule(0, 0)).to.be.revertedWith(
+        "MarketMediator::onlyArbitrator:Sender is not arbitrator"
+      );
     });
     it("should rule escalated dispute", async () => {
-      // TODO
+      const ruling = 1;
+
+      await expect(
+        arbitrator
+          .connect(requester)
+          .giveRuling(mediator.address, arbitratorDisputeId, ruling)
+      )
+        .to.emit(mediator, "Ruling")
+        .withArgs(arbitrator.address, arbitratorDisputeId, ruling);
     });
   });
 
