@@ -7,8 +7,8 @@ import {
   MockArbitrator__factory,
   MockMarket,
   MockMarket__factory,
-  MockRuleDisputeMediator,
-  MockRuleDisputeMediator__factory,
+  MockMediatorWrapper,
+  MockMediatorWrapper__factory,
 } from "../../typechain";
 
 import chai from "chai";
@@ -454,7 +454,7 @@ describe("ArweaveMarketMediator", function () {
 
   describe("_ruleDispute()", async () => {
     let disputeId: BigNumber;
-    let mediator: MockRuleDisputeMediator;
+    let mediator: MockMediatorWrapper;
 
     beforeEach(async () => {
       const MockArbitratorFactory = <MockArbitrator__factory>(
@@ -462,8 +462,8 @@ describe("ArweaveMarketMediator", function () {
       );
       const arbitrator = await MockArbitratorFactory.deploy(parseEther("0.1"));
 
-      const MarketMediatorFactory = <MockRuleDisputeMediator__factory>(
-        await ethers.getContractFactory("MockRuleDisputeMediator")
+      const MarketMediatorFactory = <MockMediatorWrapper__factory>(
+        await ethers.getContractFactory("MockMediatorWrapper")
       );
       mediator = await MarketMediatorFactory.deploy(
         arbitrator.address,

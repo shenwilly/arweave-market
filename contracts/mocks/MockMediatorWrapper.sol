@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {ArweaveMarketMediator} from "../MarketMediator.sol";
 import {IArweaveMarket} from "../interfaces/IArweaveMarket.sol";
 
-contract MockRuleDisputeMediator is ArweaveMarketMediator {
+contract MockMediatorWrapper is ArweaveMarketMediator {
     constructor(
         address _arbitrator,
         bytes memory _arbitrationExtraData,
