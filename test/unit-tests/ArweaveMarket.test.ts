@@ -43,6 +43,7 @@ describe("ArweaveMarket", function () {
   let mediator: MockMediator;
   let fulfillWindow: BigNumber;
   let validationWindow: BigNumber;
+  let bond: BigNumber;
 
   let snapshotId: string; // EVM snapshot before each test
 
@@ -57,6 +58,7 @@ describe("ArweaveMarket", function () {
     takerAddress = taker.address;
 
     fulfillWindow = validationWindow = BigNumber.from(100);
+    bond = parseEther("0.1");
 
     const MockMediatorFactory = <MockMediator__factory>(
       await ethers.getContractFactory("MockMediator")
@@ -68,7 +70,8 @@ describe("ArweaveMarket", function () {
     );
     arweaveMarket = await ArweaveMarketFactory.connect(owner).deploy(
       fulfillWindow,
-      validationWindow
+      validationWindow,
+      bond
     );
     await mediator.connect(owner).initMarket(arweaveMarket.address);
     await arweaveMarket.connect(owner).initMediator(mediator.address);
@@ -340,7 +343,8 @@ describe("ArweaveMarket", function () {
       );
       const arweaveMarket = await ArweaveMarketFactory.connect(owner).deploy(
         fulfillWindow,
-        validationWindow
+        validationWindow,
+        bond
       );
       await mediator.connect(owner).initMarket(arweaveMarket.address);
 
@@ -796,7 +800,8 @@ describe("ArweaveMarket", function () {
       );
       arweaveMarket = await ArweaveMarketFactory.connect(owner).deploy(
         fulfillWindow,
-        validationWindow
+        validationWindow,
+        bond
       );
       await mediator.connect(owner).initMarket(arweaveMarket.address);
     });

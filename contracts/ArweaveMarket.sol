@@ -16,6 +16,8 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
     uint256 public fulfillWindow;
     /// @notice duration before payment can be taken by uploader
     uint256 public validationWindow;
+    /// @notice ETH bond for taking request
+    uint256 public bond;
 
     address public mediator;
     address public constant ETH_TOKEN =
@@ -37,9 +39,14 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         _;
     }
 
-    constructor(uint256 _fulfillWindow, uint256 _validationWindow) {
+    constructor(
+        uint256 _fulfillWindow,
+        uint256 _validationWindow,
+        uint256 _bond
+    ) {
         setFulfillWindow(_fulfillWindow);
         setValidationWindow(_validationWindow);
+        setBond(_bond);
     }
 
     function initMediator(address _mediator) public onlyOwner {
@@ -76,6 +83,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         request.dataHash = _dataHash;
         request.paymentToken = _paymentToken;
         request.paymentAmount = paymentAmount;
+        request.bond = bond;
 
         requests.push(request);
 
@@ -84,9 +92,16 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
 
     function takeRequest(uint256 _requestId)
         external
+        payable
         onlyPeriod(_requestId, RequestPeriod.Waiting)
     {
         ArweaveRequest storage request = requests[_requestId];
+
+        require(
+            msg.value == request.bond,
+            "ArweaveMarket::takeRequest:Invalid bond value"
+        );
+
         request.period = RequestPeriod.Processing;
         request.taker = msg.sender;
         request.fulfillDeadline = block.timestamp + fulfillWindow;
@@ -139,10 +154,9 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         onlyPeriod(_requestId, RequestPeriod.Disputed)
     {
         if (_winner == DisputeWinner.None) {
-            _cancelRequest(_requestId);
+            _cancelRequest(_requestId, false);
         } else if (_winner == DisputeWinner.Requester) {
-            _cancelRequest(_requestId);
-            _reimburse(_requestId);
+            _cancelRequest(_requestId, true);
         } else if (_winner == DisputeWinner.Taker) {
             _finishRequest(_requestId);
         }
@@ -169,7 +183,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
             "ArweaveMarket::cancelRequest:Sender is not requester"
         );
 
-        _cancelRequest(_requestId);
+        _cancelRequest(_requestId, false);
     }
 
     function cancelRequestTimeout(uint256 _requestId)
@@ -185,7 +199,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
             "ArweaveMarket::cancelRequestTimeout:Fulfill deadline has not been reached"
         );
 
-        _cancelRequest(_requestId);
+        _cancelRequest(_requestId, false);
     }
 
     function _finishRequest(uint256 _requestId) private {
@@ -198,10 +212,14 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
             request.paymentAmount
         );
 
+        if (request.bond > 0) {
+            _transfer(payable(request.taker), ETH_TOKEN, request.bond);
+        }
+
         emit RequestFinished(_requestId);
     }
 
-    function _cancelRequest(uint256 _requestId) private {
+    function _cancelRequest(uint256 _requestId, bool _takeBond) private {
         ArweaveRequest storage request = requests[_requestId];
         request.period = RequestPeriod.Finished;
 
@@ -210,6 +228,14 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
             request.paymentToken,
             request.paymentAmount
         );
+
+        if (request.bond > 0) {
+            if (_takeBond) {
+                _transfer(payable(request.requester), ETH_TOKEN, request.bond);
+            } else {
+                _transfer(payable(request.taker), ETH_TOKEN, request.bond);
+            }
+        }
 
         emit RequestCancelled(_requestId);
     }
@@ -227,16 +253,16 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
         }
     }
 
-    function _reimburse(uint256 _requestId) private {
-        // TODO: punish taker and reimburse requester
-    }
-
     function setFulfillWindow(uint256 _fulfillWindow) public onlyOwner {
         fulfillWindow = _fulfillWindow;
     }
 
     function setValidationWindow(uint256 _validationWindow) public onlyOwner {
         validationWindow = _validationWindow;
+    }
+
+    function setBond(uint256 _bond) public onlyOwner {
+        bond = _bond;
     }
 
     function getRequestsLength() public view returns (uint256) {

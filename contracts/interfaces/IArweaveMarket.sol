@@ -24,6 +24,7 @@ interface IArweaveMarket {
         address taker;
         address paymentToken;
         uint256 paymentAmount;
+        uint256 bond;
         uint256 fulfillDeadline;
         uint256 validationDeadline;
         RequestPeriod period;
