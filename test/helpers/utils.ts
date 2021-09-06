@@ -15,6 +15,23 @@ export const getNextDisputeId = async (
   return await mediator.getDisputesLength();
 };
 
+export const getDisputeDeadlineTimestamp = async (
+  mediator: ArweaveMarketMediator,
+  disputeId: BigNumber
+): Promise<number> => {
+  const dispute = await mediator.disputes(disputeId);
+  const deadline: BigNumber = dispute[2];
+  return deadline.toNumber();
+};
+
+export const getArbitratorDisputeID = async (
+  mediator: ArweaveMarketMediator,
+  disputeId: BigNumber
+): Promise<BigNumber> => {
+  const dispute = await mediator.disputes(disputeId);
+  return dispute[4];
+};
+
 export const mintUsdc = async (amount: BigNumberish, to: string) => {
   const usdc = await ethers.getContractAt("IERC20", USDC_ADDRESS);
 

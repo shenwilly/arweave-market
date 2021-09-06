@@ -13,7 +13,9 @@ import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import {
   fastForwardTo,
+  getArbitratorDisputeID,
   getCurrentTimestamp,
+  getDisputeDeadlineTimestamp,
   getNextDisputeId,
 } from "../helpers/utils";
 import { BigNumber } from "ethers";
@@ -180,9 +182,10 @@ describe("ArweaveMarketMediator", function () {
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
     it("should revert if dispute is already resolved", async () => {
-      const request = await mediator.disputes(disputeId);
-      const deadline: BigNumber = request[2];
-      const deadlineTimestamp = deadline.toNumber();
+      const deadlineTimestamp = await getDisputeDeadlineTimestamp(
+        mediator,
+        disputeId
+      );
       await fastForwardTo(deadlineTimestamp);
 
       await mediator.connect(owner).resolveDispute(disputeId);
@@ -193,9 +196,10 @@ describe("ArweaveMarketMediator", function () {
       );
     });
     it("should revert if dispute deadline has been reached", async () => {
-      const dispute = await mediator.disputes(disputeId);
-      const deadline: BigNumber = dispute[2];
-      const deadlineTimestamp = deadline.toNumber();
+      const deadlineTimestamp = await getDisputeDeadlineTimestamp(
+        mediator,
+        disputeId
+      );
       await fastForwardTo(deadlineTimestamp);
 
       await expect(
@@ -246,9 +250,10 @@ describe("ArweaveMarketMediator", function () {
       );
     });
     it("should revert if dispute is already resolved", async () => {
-      const request = await mediator.disputes(disputeId);
-      const deadline: BigNumber = request[2];
-      const deadlineTimestamp = deadline.toNumber();
+      const deadlineTimestamp = await getDisputeDeadlineTimestamp(
+        mediator,
+        disputeId
+      );
       await fastForwardTo(deadlineTimestamp);
 
       await mediator.connect(owner).resolveDispute(disputeId);
@@ -259,9 +264,10 @@ describe("ArweaveMarketMediator", function () {
       );
     });
     it("should revert if dispute deadline has been reached", async () => {
-      const dispute = await mediator.disputes(disputeId);
-      const deadline: BigNumber = dispute[2];
-      const deadlineTimestamp = deadline.toNumber();
+      const deadlineTimestamp = await getDisputeDeadlineTimestamp(
+        mediator,
+        disputeId
+      );
       await fastForwardTo(deadlineTimestamp);
 
       await expect(
@@ -313,8 +319,7 @@ describe("ArweaveMarketMediator", function () {
         value: arbitrationCost,
       });
 
-      const dispute = await mediator.disputes(disputeId);
-      arbitratorDisputeId = dispute[4];
+      arbitratorDisputeId = await getArbitratorDisputeID(mediator, disputeId);
     });
 
     it("should revert if sender is not arbitrator", async () => {
@@ -336,17 +341,112 @@ describe("ArweaveMarketMediator", function () {
   });
 
   describe("resolveDispute()", async () => {
+    let disputeId: BigNumber;
+    let deadlineTimestamp: number;
+
+    beforeEach(async () => {
+      disputeId = await getNextDisputeId(mediator);
+      await arweaveMarket.connect(requester).createDispute(0, mediator.address);
+      await mediator
+        .connect(owner)
+        .setDisputeWinner(disputeId, DisputeWinner.Taker);
+
+      deadlineTimestamp = await getDisputeDeadlineTimestamp(
+        mediator,
+        disputeId
+      );
+    });
+
+    it("should revert if dispute doesn't exist", async () => {
+      const requestsLength = await mediator.getDisputesLength();
+      await expect(
+        mediator.connect(owner).resolveDispute(requestsLength.add(1))
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
+      );
+    });
     it("should revert if dispute is already resolved", async () => {
-      // TODO
+      await fastForwardTo(deadlineTimestamp);
+      await mediator.connect(owner).resolveDispute(disputeId);
+      await expect(
+        mediator.connect(owner).resolveDispute(disputeId)
+      ).to.be.revertedWith(
+        "MarketMediator::resolveDispute:Dispute already resolved"
+      );
     });
     it("should revert if dispute deadline has not been reached", async () => {
-      // TODO
+      await expect(
+        mediator.connect(owner).resolveDispute(disputeId)
+      ).to.be.revertedWith(
+        "MarketMediator::resolveDispute:Deadline has not been reached"
+      );
     });
     it("should revert if arbitrator has not given ruling yet (only escalated)", async () => {
-      // TODO
+      await mediator.connect(owner).escalateDispute(disputeId, {
+        value: arbitrationCost,
+      });
+
+      await fastForwardTo(deadlineTimestamp);
+
+      await expect(
+        mediator.connect(owner).resolveDispute(disputeId)
+      ).to.be.revertedWith(
+        "MarketMediator::resolveDispute:Arbitrator has not ruled yet"
+      );
     });
-    it("should resolve dispute", async () => {
-      // TODO
+    it("should resolve dispute (None)", async () => {
+      await mediator
+        .connect(owner)
+        .setDisputeWinner(disputeId, DisputeWinner.None);
+      await fastForwardTo(deadlineTimestamp);
+
+      await expect(mediator.connect(owner).resolveDispute(disputeId))
+        .to.emit(mediator, "DisputeResolved")
+        .withArgs(disputeId, DisputeWinner.None);
+    });
+    it("should resolve dispute (Requester)", async () => {
+      await mediator
+        .connect(owner)
+        .setDisputeWinner(disputeId, DisputeWinner.Requester);
+      await fastForwardTo(deadlineTimestamp);
+
+      await expect(mediator.connect(owner).resolveDispute(disputeId))
+        .to.emit(mediator, "DisputeResolved")
+        .withArgs(disputeId, DisputeWinner.Requester);
+    });
+    it("should resolve dispute (Taker)", async () => {
+      await mediator
+        .connect(owner)
+        .setDisputeWinner(disputeId, DisputeWinner.Taker);
+      await fastForwardTo(deadlineTimestamp);
+
+      await expect(mediator.connect(owner).resolveDispute(disputeId))
+        .to.emit(mediator, "DisputeResolved")
+        .withArgs(disputeId, DisputeWinner.Taker);
+    });
+    it("should resolve escalated dispute", async () => {
+      await mediator
+        .connect(owner)
+        .setDisputeWinner(disputeId, DisputeWinner.Taker);
+      await mediator.connect(taker).escalateDispute(disputeId, {
+        value: arbitrationCost,
+      });
+      const arbitratorDisputeId = await getArbitratorDisputeID(
+        mediator,
+        disputeId
+      );
+      await arbitrator
+        .connect(taker)
+        .giveRuling(
+          mediator.address,
+          arbitratorDisputeId,
+          DisputeWinner.Requester
+        );
+      await fastForwardTo(deadlineTimestamp);
+
+      await expect(mediator.connect(owner).resolveDispute(disputeId))
+        .to.emit(mediator, "DisputeResolved")
+        .withArgs(disputeId, DisputeWinner.Requester);
     });
   });
 
