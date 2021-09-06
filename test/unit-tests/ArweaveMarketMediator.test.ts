@@ -522,7 +522,8 @@ describe("ArweaveMarketMediator", function () {
 
   describe("getArbitrationCost()", async () => {
     it("should return arbitration cost", async () => {
-      // TODO
+      const arbitrationCost = await arbitrator.arbitrationCost("0x");
+      expect(await mediator.getArbitrationCost()).to.be.eq(arbitrationCost);
     });
   });
 
