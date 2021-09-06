@@ -7,6 +7,8 @@ import {
   MockArbitrator__factory,
   MockMarket,
   MockMarket__factory,
+  MockRuleDisputeMediator,
+  MockRuleDisputeMediator__factory,
 } from "../../typechain";
 
 import chai from "chai";
@@ -451,11 +453,70 @@ describe("ArweaveMarketMediator", function () {
   });
 
   describe("_ruleDispute()", async () => {
+    let disputeId: BigNumber;
+    let mediator: MockRuleDisputeMediator;
+
+    beforeEach(async () => {
+      const MockArbitratorFactory = <MockArbitrator__factory>(
+        await ethers.getContractFactory("MockArbitrator")
+      );
+      const arbitrator = await MockArbitratorFactory.deploy(parseEther("0.1"));
+
+      const MarketMediatorFactory = <MockRuleDisputeMediator__factory>(
+        await ethers.getContractFactory("MockRuleDisputeMediator")
+      );
+      mediator = await MarketMediatorFactory.deploy(
+        arbitrator.address,
+        "0x",
+        disputeWindow
+      );
+      await mediator.initMarket(arweaveMarket.address);
+
+      disputeId = await getNextDisputeId(mediator);
+      await arweaveMarket.connect(requester).createDispute(0, mediator.address);
+    });
+
+    it("should revert if dispute doesn't exist", async () => {
+      const requestsLength = await mediator.getDisputesLength();
+      await expect(
+        mediator
+          .connect(owner)
+          .ruleDispute(requestsLength.add(1), DisputeWinner.None)
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
+      );
+    });
     it("should revert if dispute is not escalated", async () => {
-      // TODO
+      await expect(
+        mediator.connect(owner).ruleDispute(disputeId, DisputeWinner.None)
+      ).to.be.revertedWith(
+        "MarketMediator::_ruleDispute:Dispute is not escalated"
+      );
     });
     it("should revert if dispute is already ruled", async () => {
-      // TODO
+      await mediator.connect(taker).escalateDispute(disputeId, {
+        value: arbitrationCost,
+      });
+      await mediator.connect(owner).ruleDispute(disputeId, DisputeWinner.Taker);
+      await expect(
+        mediator.connect(owner).ruleDispute(disputeId, DisputeWinner.None)
+      ).to.be.revertedWith(
+        "MarketMediator::_ruleDispute:Dispute is already ruled"
+      );
+    });
+    it("should rule dispute", async () => {
+      const disputePre = await mediator.disputes(disputeId);
+      expect(disputePre[5]).to.be.eq(false);
+      expect(disputePre[6]).to.be.eq(DisputeWinner.None);
+
+      await mediator.connect(taker).escalateDispute(disputeId, {
+        value: arbitrationCost,
+      });
+      await mediator.connect(owner).ruleDispute(disputeId, DisputeWinner.Taker);
+
+      const disputePost = await mediator.disputes(disputeId);
+      expect(disputePost[5]).to.be.eq(true);
+      expect(disputePost[6]).to.be.eq(DisputeWinner.Taker);
     });
   });
 
