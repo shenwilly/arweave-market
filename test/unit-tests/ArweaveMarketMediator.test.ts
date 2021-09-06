@@ -529,19 +529,29 @@ describe("ArweaveMarketMediator", function () {
 
   describe("getDisputeIdFromRequestId()", async () => {
     it("should return requestId", async () => {
-      // TODO
+      const requestId = 10;
+      const disputeId = await getNextDisputeId(mediator);
+      await arweaveMarket.createDispute(requestId, mediator.address);
+      expect(await mediator.getDisputeIdFromRequestId(requestId)).to.be.eq(
+        disputeId
+      );
     });
   });
 
   describe("getRequestIdFromDisputeId()", async () => {
     it("should return requestId", async () => {
-      // TODO
+      const requestId = 10;
+      const disputeId = await getNextDisputeId(mediator);
+      await arweaveMarket.createDispute(requestId, mediator.address);
+      expect(await mediator.getRequestIdFromDisputeId(disputeId)).to.be.eq(
+        requestId
+      );
     });
   });
 
   describe("getMarket()", async () => {
     it("should return market address", async () => {
-      // TODO
+      expect(await mediator.getMarket()).to.be.eq(arweaveMarket.address);
     });
   });
 });
