@@ -532,6 +532,7 @@ describe("ArweaveMarket", function () {
     it("should finish request (token payment)", async () => {
       await fastForwardTo(validationDeadlineTimestamp);
       const balanceBefore = await usdc.balanceOf(takerAddress);
+      const balanceEthBefore = await ethers.provider.getBalance(takerAddress);
 
       await expect(arweaveMarket.connect(requester).finishRequest(requestId))
         .to.emit(arweaveMarket, "RequestFinished")
@@ -539,6 +540,8 @@ describe("ArweaveMarket", function () {
 
       const balanceAfter = await usdc.balanceOf(takerAddress);
       expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
+      const balanceEthAfter = await ethers.provider.getBalance(takerAddress);
+      expect(balanceEthAfter.sub(balanceEthBefore)).to.be.eq(bond);
 
       const request = await arweaveMarket.requests(requestId);
       expect(request[10]).to.be.eq(RequestPeriod.Finished);
@@ -559,8 +562,6 @@ describe("ArweaveMarket", function () {
         .connect(taker)
         .fulfillRequest(requestId, defaultFileHash);
 
-      const requestPre = await arweaveMarket.requests(requestId);
-      const validationDeadline: BigNumber = requestPre[8];
       const validationDeadlineTimestamp = await getValidationDeadlineTimestamp(
         arweaveMarket,
         requestId
@@ -579,13 +580,17 @@ describe("ArweaveMarket", function () {
       const balanceAfterContract = await ethers.provider.getBalance(
         arweaveMarket.address
       );
-      expect(balanceBeforeContract.sub(balanceAfterContract)).to.be.eq(amount);
+      expect(balanceBeforeContract.sub(balanceAfterContract)).to.be.eq(
+        amount.add(bond)
+      );
 
       const balanceAfterTaker = await ethers.provider.getBalance(takerAddress);
-      expect(balanceAfterTaker.sub(balanceBeforeTaker)).to.be.eq(amount);
+      expect(balanceAfterTaker.sub(balanceBeforeTaker)).to.be.eq(
+        amount.add(bond)
+      );
 
       const requestPost = await arweaveMarket.requests(requestId);
-      expect(requestPost[9]).to.be.eq(RequestPeriod.Finished);
+      expect(requestPost[10]).to.be.eq(RequestPeriod.Finished);
     });
   });
 
@@ -796,17 +801,19 @@ describe("ArweaveMarket", function () {
       const balanceAfterContract = await ethers.provider.getBalance(
         arweaveMarket.address
       );
-      expect(balanceBeforeContract.sub(balanceAfterContract)).to.be.eq(amount);
+      expect(balanceBeforeContract.sub(balanceAfterContract)).to.be.eq(
+        amount.add(bond)
+      );
 
       const balanceAfterRequester = await ethers.provider.getBalance(
         requesterAddress
       );
       expect(
         balanceAfterRequester.sub(balanceBeforeRequester).add(txFee)
-      ).to.be.eq(amount);
+      ).to.be.eq(amount.add(bond));
 
       const requestPost = await arweaveMarket.requests(requestId);
-      expect(requestPost[9]).to.be.eq(RequestPeriod.Finished);
+      expect(requestPost[10]).to.be.eq(RequestPeriod.Finished);
     });
   });
 
