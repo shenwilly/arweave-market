@@ -112,7 +112,7 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
 
         uint256 arbitratorDisputeId = IArbitrator(arbitrator).createDispute{
             value: cost
-        }(2, bytes(""));
+        }(2, arbitrationExtraData);
         dispute.arbitratorDisputeId = arbitratorDisputeId;
         arbitratorDisputeToDispute[arbitratorDisputeId] = _disputeId;
 
@@ -175,6 +175,13 @@ contract ArweaveMarketMediator is IMarketMediator, IArbitrable, Ownable {
 
         dispute.winner = _winner;
         dispute.arbitratorRuled = true;
+    }
+
+    function setArbitrationExtraData(bytes calldata _extraData)
+        external
+        onlyOwner
+    {
+        arbitrationExtraData = _extraData;
     }
 
     function getArbitrationCost() public view returns (uint256) {
