@@ -7,12 +7,13 @@ import {
 } from "../typechain";
 
 async function main() {
-  const FULFILL_WINDOW = BigNumber.from(100);
-  const VALIDATION_WINDOW = BigNumber.from(100);
+  const FULFILL_WINDOW = BigNumber.from(86400);
+  const VALIDATION_WINDOW = BigNumber.from(86400);
   const BOND = parseEther("0.1");
-  const ARBITRATOR_ADDRESS = "";
-  const ARBITRATOR_EXTRADATA = "";
-  const DISPUTE_WINDOW = BigNumber.from(100);
+  const ARBITRATOR_ADDRESS = "0x988b3a538b618c7a603e1c11ab82cd16dbe28069";
+  const ARBITRATOR_EXTRADATA =
+    "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003";
+  const DISPUTE_WINDOW = BigNumber.from(86400);
 
   const ArweaveMarketFactory = <ArweaveMarket__factory>(
     await ethers.getContractFactory("ArweaveMarket")
