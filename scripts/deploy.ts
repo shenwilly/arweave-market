@@ -1,22 +1,40 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// When running the script with `npx hardhat run <script>` you'll find the Hardhat
-// Runtime Environment's members available in the global scope.
-import hre from "hardhat";
+import { BigNumber } from "ethers";
+import { parseEther } from "ethers/lib/utils";
+import { ethers } from "hardhat";
+import {
+  ArweaveMarketMediator__factory,
+  ArweaveMarket__factory,
+} from "../typechain";
 
 async function main() {
-  // Hardhat always runs the compile task when running scripts with its command
-  // line interface.
-  //
-  // If this script is run directly using `node` you may want to call compile
-  // manually to make sure everything is compiled
-  // await hre.run('compile');
-  // We get the contract to deploy
-  // const Greeter = await hre.ethers.getContractFactory("Greeter");
-  // const greeter = await Greeter.deploy("Hello");
-  // await greeter.deployed();
-  // console.log("Greeter deployed to:", greeter.address);
+  const FULFILL_WINDOW = BigNumber.from(100);
+  const VALIDATION_WINDOW = BigNumber.from(100);
+  const BOND = parseEther("0.1");
+  const ARBITRATOR_ADDRESS = "";
+  const ARBITRATOR_EXTRADATA = "";
+  const DISPUTE_WINDOW = BigNumber.from(100);
+
+  const ArweaveMarketFactory = <ArweaveMarket__factory>(
+    await ethers.getContractFactory("ArweaveMarket")
+  );
+  const arweaveMarket = await ArweaveMarketFactory.deploy(
+    FULFILL_WINDOW,
+    VALIDATION_WINDOW,
+    BOND
+  );
+  await arweaveMarket.deployed();
+  console.log("ArweaveMarket deployed to:", arweaveMarket.address);
+
+  const MarketMediatorFactory = <ArweaveMarketMediator__factory>(
+    await ethers.getContractFactory("ArweaveMarketMediator")
+  );
+  const mediator = await MarketMediatorFactory.deploy(
+    ARBITRATOR_ADDRESS,
+    ARBITRATOR_EXTRADATA,
+    DISPUTE_WINDOW
+  );
+  await mediator.deployed();
+  console.log("Mediator deployed to:", mediator.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
