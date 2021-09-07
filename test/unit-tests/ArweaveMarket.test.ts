@@ -831,13 +831,6 @@ describe("ArweaveMarket", function () {
     // });
   });
 
-  describe("_reimburse()", async () => {
-    // it("should revert if token is address(0)", async () => {
-    // });
-    // it("should create a request", async () => {
-    // });
-  });
-
   describe("initMediator()", async () => {
     let arweaveMarket: ArweaveMarket;
     let mediator: MockMediator;
