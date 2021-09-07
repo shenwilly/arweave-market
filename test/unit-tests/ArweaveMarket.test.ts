@@ -17,8 +17,10 @@ import {
 import {
   fastForwardTo,
   getCurrentTimestamp,
+  getFulfillDeadlineTimestamp,
   getNextRequestId,
   getTxFee,
+  getValidationDeadlineTimestamp,
   mintUsdc,
 } from "../helpers/utils";
 import { Contract } from "@ethersproject/contracts";
@@ -139,9 +141,10 @@ describe("ArweaveMarket", function () {
       expect(request[4]).to.be.eq(AddressZero);
       expect(request[5]).to.be.eq(usdc.address);
       expect(request[6]).to.be.eq(amount);
-      expect(request[7]).to.be.eq(0);
+      expect(request[7]).to.be.eq(bond);
       expect(request[8]).to.be.eq(0);
-      expect(request[9]).to.be.eq(RequestPeriod.Waiting);
+      expect(request[9]).to.be.eq(0);
+      expect(request[10]).to.be.eq(RequestPeriod.Waiting);
     });
     it("should create a request (ETH payment)", async () => {
       const requestId = await getNextRequestId(arweaveMarket);
@@ -174,9 +177,10 @@ describe("ArweaveMarket", function () {
       expect(request[4]).to.be.eq(AddressZero);
       expect(request[5]).to.be.eq(DUMMY_ETH_ADDRESS);
       expect(request[6]).to.be.eq(amount);
-      expect(request[7]).to.be.eq(0);
+      expect(request[7]).to.be.eq(bond);
       expect(request[8]).to.be.eq(0);
-      expect(request[9]).to.be.eq(RequestPeriod.Waiting);
+      expect(request[9]).to.be.eq(0);
+      expect(request[10]).to.be.eq(RequestPeriod.Waiting);
     });
   });
 
@@ -194,29 +198,46 @@ describe("ArweaveMarket", function () {
     it("should revert if request doesn't exist", async () => {
       const requestsLength = await arweaveMarket.getRequestsLength();
       await expect(
-        arweaveMarket.connect(taker).takeRequest(requestsLength.add(1))
+        arweaveMarket.connect(taker).takeRequest(requestsLength.add(1), {
+          value: bond,
+        })
       ).to.be.revertedWith(
         "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index)"
       );
     });
     it("should revert if request is not in waiting period", async () => {
-      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket.connect(taker).takeRequest(requestId, {
+        value: bond,
+      });
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.not.be.eq(RequestPeriod.Waiting);
+      expect(request[10]).to.not.be.eq(RequestPeriod.Waiting);
       await expect(
-        arweaveMarket.connect(taker).takeRequest(requestId)
+        arweaveMarket.connect(taker).takeRequest(requestId, {
+          value: bond,
+        })
       ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
     });
+    it("should revert if request is bond is invalid", async () => {
+      await expect(
+        arweaveMarket.connect(taker).takeRequest(requestId, {
+          value: bond.add(1),
+        })
+      ).to.be.revertedWith("ArweaveMarket::takeRequest:Invalid bond value");
+    });
     it("should take request", async () => {
-      await expect(arweaveMarket.connect(taker).takeRequest(requestId))
+      await expect(
+        arweaveMarket.connect(taker).takeRequest(requestId, {
+          value: bond,
+        })
+      )
         .to.emit(arweaveMarket, "RequestTaken")
         .withArgs(requestId, takerAddress);
       const now = await getCurrentTimestamp();
 
       const request = await arweaveMarket.requests(requestId);
       expect(request[4]).to.be.eq(takerAddress);
-      expect(request[7]).to.be.eq(now.add(fulfillWindow));
-      expect(request[9]).to.be.eq(RequestPeriod.Processing);
+      expect(request[8]).to.be.eq(now.add(fulfillWindow));
+      expect(request[10]).to.be.eq(RequestPeriod.Processing);
     });
   });
 
@@ -229,7 +250,9 @@ describe("ArweaveMarket", function () {
       await arweaveMarket
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, amount);
-      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket.connect(taker).takeRequest(requestId, {
+        value: bond,
+      });
     });
 
     it("should revert if request doesn't exist", async () => {
@@ -248,7 +271,7 @@ describe("ArweaveMarket", function () {
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, 0);
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.not.be.eq(RequestPeriod.Processing);
+      expect(request[10]).to.not.be.eq(RequestPeriod.Processing);
       await expect(
         arweaveMarket
           .connect(taker)
@@ -274,8 +297,8 @@ describe("ArweaveMarket", function () {
 
       const request = await arweaveMarket.requests(requestId);
       expect(request[2]).to.be.eq(defaultArweaveTxId);
-      expect(request[8]).to.be.eq(now.add(validationWindow));
-      expect(request[9]).to.be.eq(RequestPeriod.Validating);
+      expect(request[9]).to.be.eq(now.add(validationWindow));
+      expect(request[10]).to.be.eq(RequestPeriod.Validating);
     });
   });
 
@@ -288,7 +311,9 @@ describe("ArweaveMarket", function () {
       await arweaveMarket
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, amount);
-      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket.connect(taker).takeRequest(requestId, {
+        value: bond,
+      });
       await arweaveMarket
         .connect(taker)
         .fulfillRequest(requestId, defaultArweaveTxId);
@@ -308,7 +333,7 @@ describe("ArweaveMarket", function () {
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, 0);
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.not.be.eq(RequestPeriod.Validating);
+      expect(request[10]).to.not.be.eq(RequestPeriod.Validating);
       await expect(
         arweaveMarket.connect(requester).disputeRequest(requestId)
       ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
@@ -321,9 +346,10 @@ describe("ArweaveMarket", function () {
       );
     });
     it("should revert if validation deadline has been reached", async () => {
-      const request = await arweaveMarket.requests(requestId);
-      const validationDeadline: BigNumber = request[8];
-      const validationDeadlineTimestamp = validationDeadline.toNumber();
+      const validationDeadlineTimestamp = await getValidationDeadlineTimestamp(
+        arweaveMarket,
+        requestId
+      );
       await fastForwardTo(validationDeadlineTimestamp);
 
       await expect(
@@ -352,7 +378,9 @@ describe("ArweaveMarket", function () {
       await arweaveMarket
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, amount);
-      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket.connect(taker).takeRequest(requestId, {
+        value: bond,
+      });
       await arweaveMarket
         .connect(taker)
         .fulfillRequest(requestId, defaultArweaveTxId);
@@ -377,7 +405,9 @@ describe("ArweaveMarket", function () {
       await arweaveMarket
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, amount);
-      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket.connect(taker).takeRequest(requestId, {
+        value: bond,
+      });
       await arweaveMarket
         .connect(taker)
         .fulfillRequest(requestId, defaultArweaveTxId);
@@ -400,7 +430,7 @@ describe("ArweaveMarket", function () {
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, 0);
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.not.be.eq(RequestPeriod.Validating);
+      expect(request[10]).to.not.be.eq(RequestPeriod.Validating);
       await expect(
         mediator
           .connect(requester)
@@ -460,14 +490,17 @@ describe("ArweaveMarket", function () {
       await arweaveMarket
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, amount);
-      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket.connect(taker).takeRequest(requestId, {
+        value: bond,
+      });
       await arweaveMarket
         .connect(taker)
         .fulfillRequest(requestId, defaultFileHash);
 
-      const request = await arweaveMarket.requests(requestId);
-      const validationDeadline: BigNumber = request[8];
-      validationDeadlineTimestamp = validationDeadline.toNumber();
+      validationDeadlineTimestamp = await getValidationDeadlineTimestamp(
+        arweaveMarket,
+        requestId
+      );
     });
 
     it("should revert if request doesn't exist", async () => {
@@ -484,7 +517,7 @@ describe("ArweaveMarket", function () {
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, 0);
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.not.be.eq(RequestPeriod.Validating);
+      expect(request[10]).to.not.be.eq(RequestPeriod.Validating);
       await expect(
         arweaveMarket.connect(requester).finishRequest(requestId)
       ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
@@ -508,7 +541,7 @@ describe("ArweaveMarket", function () {
       expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
 
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.be.eq(RequestPeriod.Finished);
+      expect(request[10]).to.be.eq(RequestPeriod.Finished);
     });
     it("should finish request (ETH payment)", async () => {
       requestId = await getNextRequestId(arweaveMarket);
@@ -519,14 +552,19 @@ describe("ArweaveMarket", function () {
         .createRequest(defaultFileHash, DUMMY_ETH_ADDRESS, 0, {
           value: amount,
         });
-      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket.connect(taker).takeRequest(requestId, {
+        value: bond,
+      });
       await arweaveMarket
         .connect(taker)
         .fulfillRequest(requestId, defaultFileHash);
 
       const requestPre = await arweaveMarket.requests(requestId);
       const validationDeadline: BigNumber = requestPre[8];
-      const validationDeadlineTimestamp = validationDeadline.toNumber();
+      const validationDeadlineTimestamp = await getValidationDeadlineTimestamp(
+        arweaveMarket,
+        requestId
+      );
 
       await fastForwardTo(validationDeadlineTimestamp);
       const balanceBeforeContract = await ethers.provider.getBalance(
@@ -575,9 +613,11 @@ describe("ArweaveMarket", function () {
       );
     });
     it("should revert if request is not in waiting period", async () => {
-      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket.connect(taker).takeRequest(requestId, {
+        value: bond,
+      });
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.not.be.eq(RequestPeriod.Waiting);
+      expect(request[10]).to.not.be.eq(RequestPeriod.Waiting);
       await expect(
         arweaveMarket.connect(requester).cancelRequest(requestId)
       ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
@@ -600,7 +640,7 @@ describe("ArweaveMarket", function () {
       expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
 
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.be.eq(RequestPeriod.Finished);
+      expect(request[10]).to.be.eq(RequestPeriod.Finished);
     });
     it("should cancel request (ETH payment)", async () => {
       requestId = await getNextRequestId(arweaveMarket);
@@ -640,7 +680,7 @@ describe("ArweaveMarket", function () {
       ).to.be.eq(amount);
 
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.be.eq(RequestPeriod.Finished);
+      expect(request[10]).to.be.eq(RequestPeriod.Finished);
     });
   });
 
@@ -658,11 +698,14 @@ describe("ArweaveMarket", function () {
       await arweaveMarket
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, amount);
-      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket.connect(taker).takeRequest(requestId, {
+        value: bond,
+      });
 
-      const request = await arweaveMarket.requests(requestId);
-      const fulfillDeadline: BigNumber = request[7];
-      fulfillDeadlineTimestamp = fulfillDeadline.toNumber();
+      fulfillDeadlineTimestamp = await getFulfillDeadlineTimestamp(
+        arweaveMarket,
+        requestId
+      );
     });
 
     it("should revert if request doesn't exist", async () => {
@@ -681,7 +724,7 @@ describe("ArweaveMarket", function () {
         .connect(requester)
         .createRequest(defaultFileHash, USDC_ADDRESS, 0);
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.not.be.eq(RequestPeriod.Processing);
+      expect(request[10]).to.not.be.eq(RequestPeriod.Processing);
       await expect(
         arweaveMarket.connect(requester).cancelRequestTimeout(requestId)
       ).to.be.revertedWith("ArweaveMarket::onlyPeriod:Invalid Period");
@@ -714,7 +757,7 @@ describe("ArweaveMarket", function () {
       expect(balanceAfter.sub(balanceBefore)).to.be.eq(amount);
 
       const request = await arweaveMarket.requests(requestId);
-      expect(request[9]).to.be.eq(RequestPeriod.Finished);
+      expect(request[10]).to.be.eq(RequestPeriod.Finished);
     });
     it("should cancel request (ETH payment)", async () => {
       const requestId = await getNextRequestId(arweaveMarket);
@@ -725,11 +768,14 @@ describe("ArweaveMarket", function () {
         .createRequest(defaultFileHash, DUMMY_ETH_ADDRESS, 0, {
           value: amount,
         });
-      await arweaveMarket.connect(taker).takeRequest(requestId);
+      await arweaveMarket.connect(taker).takeRequest(requestId, {
+        value: bond,
+      });
 
-      const requestPre = await arweaveMarket.requests(requestId);
-      const fulfillDeadline: BigNumber = requestPre[7];
-      const fulfillDeadlineTimestamp = fulfillDeadline.toNumber();
+      const fulfillDeadlineTimestamp = await getFulfillDeadlineTimestamp(
+        arweaveMarket,
+        requestId
+      );
 
       await fastForwardTo(fulfillDeadlineTimestamp);
       const balanceBeforeContract = await ethers.provider.getBalance(

@@ -15,6 +15,24 @@ export const getNextDisputeId = async (
   return await mediator.getDisputesLength();
 };
 
+export const getFulfillDeadlineTimestamp = async (
+  arweaveMarket: ArweaveMarket,
+  requestId: BigNumber
+): Promise<number> => {
+  const request = await arweaveMarket.requests(requestId);
+  const deadline: BigNumber = request[8];
+  return deadline.toNumber();
+};
+
+export const getValidationDeadlineTimestamp = async (
+  arweaveMarket: ArweaveMarket,
+  requestId: BigNumber
+): Promise<number> => {
+  const request = await arweaveMarket.requests(requestId);
+  const deadline: BigNumber = request[9];
+  return deadline.toNumber();
+};
+
 export const getDisputeDeadlineTimestamp = async (
   mediator: ArweaveMarketMediator,
   disputeId: BigNumber
