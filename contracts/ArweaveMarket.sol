@@ -199,7 +199,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
             "ArweaveMarket::cancelRequestTimeout:Fulfill deadline has not been reached"
         );
 
-        _cancelRequest(_requestId, false);
+        _cancelRequest(_requestId, true);
     }
 
     function _finishRequest(uint256 _requestId) private {
@@ -229,7 +229,7 @@ contract ArweaveMarket is IArweaveMarket, Ownable {
             request.paymentAmount
         );
 
-        if (request.bond > 0) {
+        if (request.bond > 0 && request.taker != address(0)) {
             if (_takeBond) {
                 _transfer(payable(request.requester), ETH_TOKEN, request.bond);
             } else {
