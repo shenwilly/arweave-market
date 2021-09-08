@@ -77,3 +77,15 @@ export const getTxFee = async (
 ): Promise<BigNumber> => {
   return receipt.gasUsed.mul(receipt.effectiveGasPrice);
 };
+
+export const getArbitrationExtraData = (
+  subcourtID: string,
+  noOfVotes: number
+): string => {
+  const extraData = `0x${
+    parseInt(subcourtID, 10).toString(16).padStart(64, "0") +
+    parseInt(noOfVotes.toString(), 10).toString(16).padStart(64, "0")
+  }`;
+
+  return extraData;
+};

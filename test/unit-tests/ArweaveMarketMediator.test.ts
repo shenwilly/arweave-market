@@ -15,6 +15,7 @@ import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import {
   fastForwardTo,
+  getArbitrationExtraData,
   getArbitratorDisputeID,
   getCurrentTimestamp,
   getDisputeDeadlineTimestamp,
@@ -51,6 +52,7 @@ describe("ArweaveMarketMediator", function () {
     takerAddress = taker.address;
 
     disputeWindow = BigNumber.from(100);
+    const extraData = getArbitrationExtraData("0", 3);
 
     const MockArbitratorFactory = <MockArbitrator__factory>(
       await ethers.getContractFactory("MockArbitrator")
@@ -63,7 +65,7 @@ describe("ArweaveMarketMediator", function () {
     );
     mediator = await MarketMediatorFactory.deploy(
       arbitrator.address,
-      "0x",
+      extraData,
       disputeWindow
     );
 
@@ -472,7 +474,7 @@ describe("ArweaveMarketMediator", function () {
       );
       await mediator.initMarket(arweaveMarket.address);
 
-      disputeId = await getNextDisputeId(mediator);
+      disputeId = await mediator.getDisputesLength();
       await arweaveMarket.connect(requester).createDispute(0, mediator.address);
     });
 
@@ -517,6 +519,21 @@ describe("ArweaveMarketMediator", function () {
       const disputePost = await mediator.disputes(disputeId);
       expect(disputePost[5]).to.be.eq(true);
       expect(disputePost[6]).to.be.eq(DisputeWinner.Taker);
+    });
+  });
+
+  describe("setArbitrationExtraData()", async () => {
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        mediator.connect(requester).setArbitrationExtraData("0x")
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should set new arbitrationExtraData", async () => {
+      const oldExtraData = await mediator.arbitrationExtraData();
+      const newExtraData = getArbitrationExtraData("0", 5);
+      expect(oldExtraData).to.not.be.eq(newExtraData);
+      await mediator.connect(owner).setArbitrationExtraData(newExtraData);
+      expect(await mediator.arbitrationExtraData()).to.be.eq(newExtraData);
     });
   });
 
