@@ -10,6 +10,7 @@ import "solidity-coverage";
 
 import { HardhatUserConfig } from "hardhat/types";
 import {
+  CMC_API_KEY,
   ETHERSCAN_API_KEY,
   MAINNET_PRIVATE_KEY,
   NETWORK_FORK_URL,
@@ -66,6 +67,7 @@ const config: HardhatUserConfig = {
   gasReporter: {
     enabled: false,
     currency: "eth",
+    coinmarketcap: CMC_API_KEY,
   },
   typechain: {
     outDir: "typechain",
